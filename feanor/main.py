@@ -1,3 +1,4 @@
+import sys
 import argparse
 
 from feanor.schema import Schema
@@ -6,11 +7,12 @@ from .engine import generate_data
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c' ,'--column', nargs=2, help='Add a column with the given type.',
-                        dest='columns', action='append')
-    parser.add_argument('-o', '--output-file', type=argparse.FileType('w'), help='The output file name.')
+                        dest='columns', action='append', metavar=('NAME', 'TYPE'))
+    parser.add_argument('output-file', nargs='?', type=argparse.FileType('w'), help='The output file name.', default=sys.stdout)
     size_options = parser.add_mutually_exclusive_group(required=True)
-    size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV')
-    size_options.add_argument('-b', '--num-bytes', type=int, help='The approximate number of bytes of the produced CSV')
+    size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV', metavar='N')
+    size_options.add_argument('-b', '--num-bytes', type=int, help='The approximate number of bytes of the produced CSV',
+                              metavar='N')
     size_options.add_argument('--stream-mode')
 
     args = parser.parse_args()
