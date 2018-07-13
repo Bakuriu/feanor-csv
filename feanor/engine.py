@@ -44,10 +44,10 @@ def generate_data(schema, output_file, *, number_of_rows=None, byte_count=None, 
         _generate_data_stream(schema, output_file)
 
 def _generate_data_by_number_of_rows(schema, output_file, number_of_rows):
-    generator = _make_stream_of_data(schema)
+    generator = _make_stream_of_data(schema, number_of_rows)
 
-    for _ in range(number_of_rows+1):
-        output_file.write(','.join(map(str, next(generator))) + '\n')
+    for data in generator:
+        output_file.write(','.join(map(str, data)) + '\n')
 
 
 def _generate_data_by_byte_count(schema, output_file, byte_count):
@@ -74,10 +74,9 @@ def _generate_data_stream(schema, output_file):
         write_to_file(data)
 
 
-def _make_stream_of_data(schema):
-    generator = schema.build()
+def _make_stream_of_data(schema, number_of_rows=float('+inf')):
+    engine = Engine(schema)
     if schema.show_header:
         yield schema.header()
 
-    while True:
-        yield generator()
+    yield from engine.generate_data(number_of_rows)
