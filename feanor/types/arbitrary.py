@@ -33,6 +33,9 @@ class Arbitrary(metaclass=ABCMeta):
         raise NotImplementedError
 
 
+ARBITRARY_TYPE_REGEX = re.compile(r'(?P<type_name>\w+)(?P<config>{.*\})?$', re.DOTALL)
+
+
 def parse_type(arbitrary_type):
     """Parse the type of an Arbitrary.
 
@@ -59,7 +62,7 @@ def parse_type(arbitrary_type):
         ('int', {'lowerbound': 10, 'upperbound': 20})
 
     """
-    match = re.match(r'(?P<type_name>\w+)(?P<config>{.*\})?$', arbitrary_type, re.DOTALL)
+    match = ARBITRARY_TYPE_REGEX.match(arbitrary_type)
     if not match:
         raise ParsingError('Expression does not describe an arbitrary type:\n{!r}\ndoes not match regex: "(?s)\w+{{.*\}$"'.format(arbitrary_type))
 
