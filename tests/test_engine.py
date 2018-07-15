@@ -64,3 +64,24 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(1000, len(generated_values))
         iterable = iter(range(3000))
         self.assertEqual(list(zip(iterable, iterable, iterable)), generated_values)
+
+    def test_can_generate_two_identical_columns_by_referencing_same_arbitrary(self):
+        schema = Schema()
+        schema.add_arbitrary('bob', type='int')
+        schema.add_column('A', arbitrary='bob')
+        schema.add_column('B', arbitrary='bob')
+
+        engine = Engine(schema, random_funcs=self.rand)
+        generated_values = list(engine.generate_data(number_of_rows=10))
+        first_col, second_col = zip(*generated_values)
+        self.assertEqual(first_col, second_col)
+
+    def test_can_generate_two_identical_columns_by_referencing_name_of_auto_created_arbitrary(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        schema.add_column('B', arbitrary='column#0')
+
+        engine = Engine(schema, random_funcs=self.rand)
+        generated_values = list(engine.generate_data(number_of_rows=10))
+        first_col, second_col = zip(*generated_values)
+        self.assertEqual(first_col, second_col)

@@ -1,6 +1,7 @@
 import random
+from collections import Counter
 
-from .types.builtin import MultiArbitrary, IntArbitrary
+from .types.builtin import MultiArbitrary, IntArbitrary, RepeaterArbitrary
 
 DEFAULT_ENVIRONMENT = {
     'int': IntArbitrary,
@@ -16,6 +17,11 @@ class Engine:
 
     def _schema_to_generator(self, schema):
         arbitraries = {arbitrary.name: self._env[arbitrary.type](self._random_funcs, config=arbitrary.config) for arbitrary in schema.arbitraries}
+        arbitraries_repeats = Counter(column.arbitrary for column in schema.columns)
+        for arbitrary, count in arbitraries_repeats.items():
+            if count > 1:
+                arbitraries[arbitrary] = RepeaterArbitrary(self._random_funcs, arbitraries[arbitrary], {'num_repeats': count})
+
         return MultiArbitrary(
             self._random_funcs,
             (arbitraries[column.arbitrary] for column in schema.columns)
