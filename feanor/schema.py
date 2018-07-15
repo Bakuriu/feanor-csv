@@ -28,15 +28,32 @@ class Schema:
 
     @property
     def arbitraries(self):
+        """The arbitraries used in the schema.
+
+        Note: the order of the returned list is undefined.
+        """
         return [SimpleNamespace(name=name, **values) for name, values in self._arbitraries.items()]
 
     @property
     def show_header(self):
         return self._show_header
 
-    def add_column(self, name, *, type, config=None):
-        arbitrary_name = 'column#%d' % len(self._columns)
-        self.add_arbitrary(arbitrary_name, type=type, config=config)
+    def add_column(self, name, *, arbitrary=None, type=None, config=None):
+        if arbitrary is not None is not type:
+            raise TypeError('Cannot specify both arbitrary and type.')
+        if arbitrary is not None is not config:
+            raise TypeError('Cannot specify a configuration for an existing arbitrary.')
+
+        if arbitrary is not None:
+            if arbitrary not in self._arbitraries:
+                raise ValueError('Arbitrary {!r} does not exist.'.format(arbitrary))
+            arbitrary_name = arbitrary
+        elif type is not None:
+            arbitrary_name = 'column#%d' % len(self._columns)
+            self.add_arbitrary(arbitrary_name, type=type, config=config)
+        else:
+            raise TypeError('You must specify either the type of the column or an associated arbitrary.')
+
         self._columns.append({
             'name': name,
             'arbitrary': arbitrary_name,

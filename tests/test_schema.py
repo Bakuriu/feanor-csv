@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 from feanor.schema import Schema, MissingVersionError, InvalidVersionNumberError
 
@@ -56,7 +57,6 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(schema.arbitraries[2].type, 'int')
         self.assertEqual(schema.arbitraries[2].config, {})
 
-    @unittest.skip
     def test_can_create_column_by_referencing_arbitrary(self):
         schema = Schema()
         schema.add_arbitrary('my_arbitrary', type='int')
@@ -67,7 +67,6 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(schema.arbitraries[0].type, 'int')
         self.assertEqual(schema.arbitraries[0].config, {})
 
-    @unittest.skip
     def test_can_create_columns_with_same_arbitrary(self):
         schema = Schema()
         schema.add_arbitrary('my_arbitrary', type='int')
@@ -81,6 +80,34 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(schema.arbitraries[0].name, 'my_arbitrary')
         self.assertEqual(schema.arbitraries[0].type, 'int')
         self.assertEqual(schema.arbitraries[0].config, {})
+
+    def test_cannot_specify_both_arbitrary_and_type(self):
+        schema = Schema()
+        with self.assertRaises(TypeError):
+            schema.add_column('A', arbitrary='my_arbitrary', type='int')
+
+    def test_cannot_specify_both_arbitrary_and_config(self):
+        schema = Schema()
+        with self.assertRaises(TypeError):
+            schema.add_column('A', arbitrary='my_arbitrary', config={'a':1})
+
+    def test_must_specify_arbitrary_or_type(self):
+        schema = Schema()
+        with self.assertRaises(TypeError):
+            schema.add_column('A')
+
+        with self.assertRaises(TypeError):
+            schema.add_column('A', config={'a':1})
+
+    def test_can_mix_reference_and_auto_generated_arbitraries(self):
+        schema = Schema()
+        schema.add_arbitrary('my_arbitrary', type='int')
+        schema.add_column('A', arbitrary='my_arbitrary')
+        schema.add_column('B', type='int')
+        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
+        self.assertEqual(len(arbitraries), 2)
+        self.assertEqual(arbitraries[0], SimpleNamespace(name='column#1', type='int', config={}))
+        self.assertEqual(arbitraries[1], SimpleNamespace(name='my_arbitrary', type='int', config={}))
 
 
 @unittest.skip
