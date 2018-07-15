@@ -25,6 +25,20 @@ class TestIntArbitrary(unittest.TestCase):
         self.assertIsInstance(b, int)
         self.assertNotEqual(a, b)
 
+    def test_can_specify_lowerbound(self):
+        arbitrary = IntArbitrary(random_funcs=self.rand, config={'lowerbound': 10})
+        self.assertEqual(arbitrary.config.lowerbound, 10)
+
+    def test_can_specify_upperbound(self):
+        arbitrary = IntArbitrary(random_funcs=self.rand, config={'upperbound': 10})
+        self.assertEqual(arbitrary.config.upperbound, 10)
+
+
+    def test_can_specify_bounds(self):
+        arbitrary = IntArbitrary(random_funcs=self.rand, config={'lowerbound': 10, 'upperbound': 11})
+        self.assertEqual(arbitrary.config.lowerbound, 10)
+        self.assertEqual(arbitrary.config.upperbound, 11)
+
 
 class TestMultiArbitrary(unittest.TestCase):
     def setUp(self):

@@ -32,10 +32,11 @@ class Schema:
     def show_header(self):
         return self._show_header
 
-    def add_column(self, name, *, type):
+    def add_column(self, name, *, type, config=None):
         self._columns.append({
             'name': name,
             'type': type,
+            'config': config or {},
         })
 
     def header(self):

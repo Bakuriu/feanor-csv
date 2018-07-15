@@ -21,7 +21,12 @@ class TestSchema(unittest.TestCase):
         schema = Schema(show_header=False)
         self.assertFalse(schema.show_header)
 
-
+    def test_can_add_column_configuration(self):
+        schema = Schema()
+        schema.add_column('A', type='int', config={'a': 10})
+        self.assertEqual(schema.columns[0].name, 'A')
+        self.assertEqual(schema.columns[0].type, 'int')
+        self.assertEqual(schema.columns[0].config, {'a': 10})
 
 
 

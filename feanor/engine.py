@@ -15,7 +15,10 @@ class Engine:
         self._generator = self._schema_to_generator(schema)
 
     def _schema_to_generator(self, schema):
-        return MultiArbitrary(self._random_funcs, (self._environment[column['type']](self._random_funcs) for column in schema._columns))
+        return MultiArbitrary(
+            self._random_funcs,
+            (self._environment[column.type](self._random_funcs, config=column.config) for column in schema.columns)
+        )
 
     @property
     def number_of_columns(self):
@@ -30,6 +33,7 @@ class Engine:
             yield self._generator()
             number_of_rows -= 1
 
+
 def generate_data(schema, output_file, *, number_of_rows=None, byte_count=None, stream_mode=False):
     if number_of_rows is None is byte_count and not stream_mode:
         raise TypeError('You must specify the size either by number of rows or byte count or use stream mode')
@@ -42,6 +46,7 @@ def generate_data(schema, output_file, *, number_of_rows=None, byte_count=None, 
         _generate_data_by_byte_count(schema, output_file, byte_count)
     else:
         _generate_data_stream(schema, output_file)
+
 
 def _generate_data_by_number_of_rows(schema, output_file, number_of_rows):
     generator = _make_stream_of_data(schema, number_of_rows)

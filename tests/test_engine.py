@@ -31,6 +31,15 @@ class TestEngine(unittest.TestCase):
         self.assertEqual('int', engine.columns[1].type)
         self.assertEqual('int', engine.columns[2].type)
 
+    def test_can_build_a_generator_from_a_schema_with_config(self):
+        schema = Schema()
+        schema.add_column('A', type='int', config={'lowerbound': 10})
+        engine = Engine(schema, random_funcs=self.rand)
+
+        self.assertEqual(1, engine.number_of_columns)
+        self.assertEqual('int', engine.columns[0].type)
+        self.assertEqual(10, engine.columns[0].config.lowerbound)
+
     def test_can_generate_arbitrary_data_with_number_of_rows(self):
         schema = Schema()
         schema.add_column('A', type='int')
