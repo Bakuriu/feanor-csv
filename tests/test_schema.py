@@ -15,7 +15,10 @@ class TestSchema(unittest.TestCase):
         schema = Schema()
         schema.add_column('A', type='int')
         self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].type, 'int')
+        self.assertEqual(schema.columns[0].arbitrary, 'column#0')
+        self.assertEqual(schema.arbitraries[0].name, 'column#0')
+        self.assertEqual(schema.arbitraries[0].type, 'int')
+        self.assertEqual(schema.arbitraries[0].config, {})
 
     def test_can_specify_header_visibility(self):
         schema = Schema(show_header=False)
@@ -25,9 +28,59 @@ class TestSchema(unittest.TestCase):
         schema = Schema()
         schema.add_column('A', type='int', config={'a': 10})
         self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].type, 'int')
-        self.assertEqual(schema.columns[0].config, {'a': 10})
+        self.assertEqual(schema.columns[0].arbitrary, 'column#0')
+        self.assertEqual(schema.arbitraries[0].name, 'column#0')
+        self.assertEqual(schema.arbitraries[0].type, 'int')
+        self.assertEqual(schema.arbitraries[0].config, {'a': 10})
 
+    def test_creates_different_arbitraries_when_multiple_columns(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        schema.add_column('B', type='int')
+        schema.add_column('C', type='int')
+        self.assertEqual(len(schema.columns), 3)
+        self.assertEqual(len(schema.arbitraries), 3)
+        self.assertEqual(schema.columns[0].name, 'A')
+        self.assertEqual(schema.columns[0].arbitrary, 'column#0')
+        self.assertEqual(schema.columns[1].name, 'B')
+        self.assertEqual(schema.columns[1].arbitrary, 'column#1')
+        self.assertEqual(schema.columns[2].name, 'C')
+        self.assertEqual(schema.columns[2].arbitrary, 'column#2')
+        self.assertEqual(schema.arbitraries[0].name, 'column#0')
+        self.assertEqual(schema.arbitraries[0].type, 'int')
+        self.assertEqual(schema.arbitraries[0].config, {})
+        self.assertEqual(schema.arbitraries[1].name, 'column#1')
+        self.assertEqual(schema.arbitraries[1].type, 'int')
+        self.assertEqual(schema.arbitraries[1].config, {})
+        self.assertEqual(schema.arbitraries[2].name, 'column#2')
+        self.assertEqual(schema.arbitraries[2].type, 'int')
+        self.assertEqual(schema.arbitraries[2].config, {})
+
+    @unittest.skip
+    def test_can_create_column_by_referencing_arbitrary(self):
+        schema = Schema()
+        schema.add_arbitrary('my_arbitrary', type='int')
+        schema.add_column('A', arbitrary='my_arbitrary')
+        self.assertEqual(schema.columns[0].name, 'A')
+        self.assertEqual(schema.columns[0].arbitrary, 'my_arbitrary')
+        self.assertEqual(schema.arbitraries[0].name, 'my_arbitrary')
+        self.assertEqual(schema.arbitraries[0].type, 'int')
+        self.assertEqual(schema.arbitraries[0].config, {})
+
+    @unittest.skip
+    def test_can_create_columns_with_same_arbitrary(self):
+        schema = Schema()
+        schema.add_arbitrary('my_arbitrary', type='int')
+        schema.add_column('A', arbitrary='my_arbitrary')
+        schema.add_column('B', arbitrary='my_arbitrary')
+        self.assertEqual(schema.columns[0].name, 'A')
+        self.assertEqual(schema.columns[0].arbitrary, 'my_arbitrary')
+        self.assertEqual(schema.columns[1].name, 'B')
+        self.assertEqual(schema.columns[1].arbitrary, 'my_arbitrary')
+        self.assertEqual(len(schema.arbitraries), 1)
+        self.assertEqual(schema.arbitraries[0].name, 'my_arbitrary')
+        self.assertEqual(schema.arbitraries[0].type, 'int')
+        self.assertEqual(schema.arbitraries[0].config, {})
 
 
 @unittest.skip

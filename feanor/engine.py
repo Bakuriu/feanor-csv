@@ -11,13 +11,14 @@ class Engine:
     def __init__(self, schema, *, environment=DEFAULT_ENVIRONMENT, random_funcs=random):
         self._random_funcs = random_funcs
         self._schema = schema
-        self._environment = dict(environment)
+        self._env = dict(environment)
         self._generator = self._schema_to_generator(schema)
 
     def _schema_to_generator(self, schema):
+        arbitraries = {arbitrary.name: self._env[arbitrary.type](self._random_funcs, config=arbitrary.config) for arbitrary in schema.arbitraries}
         return MultiArbitrary(
             self._random_funcs,
-            (self._environment[column.type](self._random_funcs, config=column.config) for column in schema.columns)
+            (arbitraries[column.arbitrary] for column in schema.columns)
         )
 
     @property
