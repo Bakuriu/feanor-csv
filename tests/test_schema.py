@@ -1,7 +1,10 @@
 import unittest
 from types import SimpleNamespace
 
-from feanor.schema import Schema, MissingVersionError, InvalidVersionNumberError, FunctionalTransformer, SchemaError
+from feanor.schema import (
+    Schema, MissingVersionError, InvalidVersionNumberError, FunctionalTransformer, SchemaError,
+    ProjectionTransformer,
+)
 
 
 class TestSchema(unittest.TestCase):
@@ -10,16 +13,15 @@ class TestSchema(unittest.TestCase):
         schema.add_column('A', type='int')
         schema.add_column('B', type='int')
         schema.add_column('C', type='int')
-        self.assertEqual(schema.header(), ('A', 'B', 'C'))
+        self.assertEqual(('A', 'B', 'C'), schema.columns)
 
     def test_can_obtain_a_column_type(self):
         schema = Schema()
         schema.add_column('A', type='int')
-        self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].generator, 'column#0')
-        self.assertEqual(schema.arbitraries[0].name, 'column#0')
-        self.assertEqual(schema.arbitraries[0].type, 'int')
-        self.assertEqual(schema.arbitraries[0].config, {})
+        self.assertEqual(('A',), schema.columns)
+        self.assertEqual( 'A', schema.arbitraries[0].name)
+        self.assertEqual( 'int', schema.arbitraries[0].type)
+        self.assertEqual( {}, schema.arbitraries[0].config)
 
     def test_can_specify_header_visibility(self):
         schema = Schema(show_header=False)
@@ -28,58 +30,54 @@ class TestSchema(unittest.TestCase):
     def test_can_add_column_configuration(self):
         schema = Schema()
         schema.add_column('A', type='int', config={'a': 10})
-        self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].generator, 'column#0')
-        self.assertEqual(schema.arbitraries[0].name, 'column#0')
-        self.assertEqual(schema.arbitraries[0].type, 'int')
-        self.assertEqual(schema.arbitraries[0].config, {'a': 10})
+        self.assertEqual( ('A',), schema.columns)
+        self.assertEqual( 'A', schema.arbitraries[0].name)
+        self.assertEqual( 'int', schema.arbitraries[0].type)
+        self.assertEqual( {'a': 10}, schema.arbitraries[0].config)
 
     def test_creates_different_arbitraries_when_multiple_columns(self):
         schema = Schema()
         schema.add_column('A', type='int')
         schema.add_column('B', type='int')
         schema.add_column('C', type='int')
-        self.assertEqual(len(schema.columns), 3)
-        self.assertEqual(len(schema.arbitraries), 3)
-        self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].generator, 'column#0')
-        self.assertEqual(schema.columns[1].name, 'B')
-        self.assertEqual(schema.columns[1].generator, 'column#1')
-        self.assertEqual(schema.columns[2].name, 'C')
-        self.assertEqual(schema.columns[2].generator, 'column#2')
-        self.assertEqual(schema.arbitraries[0].name, 'column#0')
-        self.assertEqual(schema.arbitraries[0].type, 'int')
-        self.assertEqual(schema.arbitraries[0].config, {})
-        self.assertEqual(schema.arbitraries[1].name, 'column#1')
-        self.assertEqual(schema.arbitraries[1].type, 'int')
-        self.assertEqual(schema.arbitraries[1].config, {})
-        self.assertEqual(schema.arbitraries[2].name, 'column#2')
-        self.assertEqual(schema.arbitraries[2].type, 'int')
-        self.assertEqual(schema.arbitraries[2].config, {})
+        self.assertEqual( ('A', 'B', 'C'), schema.columns)
+        self.assertEqual(3, len(schema.arbitraries))
+        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
+        self.assertEqual( 'A', arbitraries[0].name)
+        self.assertEqual( 'int', arbitraries[0].type)
+        self.assertEqual( {}, arbitraries[0].config)
+        self.assertEqual( 'B', arbitraries[1].name)
+        self.assertEqual( 'int', arbitraries[1].type)
+        self.assertEqual( {}, arbitraries[1].config)
+        self.assertEqual( 'C', arbitraries[2].name)
+        self.assertEqual( 'int', arbitraries[2].type)
+        self.assertEqual( {}, arbitraries[2].config)
 
     def test_can_create_column_by_referencing_arbitrary(self):
         schema = Schema()
         schema.add_arbitrary('my_arbitrary', type='int')
         schema.add_column('A', arbitrary='my_arbitrary')
-        self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].generator, 'my_arbitrary')
-        self.assertEqual(schema.arbitraries[0].name, 'my_arbitrary')
-        self.assertEqual(schema.arbitraries[0].type, 'int')
-        self.assertEqual(schema.arbitraries[0].config, {})
+        self.assertEqual( ('A',), schema.columns)
+        self.assertEqual( 1, len(schema.arbitraries))
+        self.assertEqual( 'my_arbitrary', schema.arbitraries[0].name)
+        self.assertEqual( 'int', schema.arbitraries[0].type)
+        self.assertEqual( {}, schema.arbitraries[0].config)
+        self.assertEqual( 1, len(schema.transformers))
+        self.assertEqual( 'A', schema.transformers[0].name)
+        self.assertEqual( ['my_arbitrary'], schema.transformers[0].inputs)
+        self.assertEqual( ['A'], schema.transformers[0].outputs)
+        self.assertEqual( ProjectionTransformer(1, 0), schema.transformers[0].transformer)
 
     def test_can_create_columns_with_same_arbitrary(self):
         schema = Schema()
         schema.add_arbitrary('my_arbitrary', type='int')
         schema.add_column('A', arbitrary='my_arbitrary')
         schema.add_column('B', arbitrary='my_arbitrary')
-        self.assertEqual(schema.columns[0].name, 'A')
-        self.assertEqual(schema.columns[0].generator, 'my_arbitrary')
-        self.assertEqual(schema.columns[1].name, 'B')
-        self.assertEqual(schema.columns[1].generator, 'my_arbitrary')
-        self.assertEqual(len(schema.arbitraries), 1)
-        self.assertEqual(schema.arbitraries[0].name, 'my_arbitrary')
-        self.assertEqual(schema.arbitraries[0].type, 'int')
-        self.assertEqual(schema.arbitraries[0].config, {})
+        self.assertEqual( ('A', 'B'), schema.columns)
+        self.assertEqual( 1, len(schema.arbitraries))
+        self.assertEqual( 'my_arbitrary', schema.arbitraries[0].name)
+        self.assertEqual( 'int', schema.arbitraries[0].type)
+        self.assertEqual( {}, schema.arbitraries[0].config)
 
     def test_cannot_specify_both_arbitrary_and_type(self):
         schema = Schema()
@@ -105,7 +103,7 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(SchemaError) as ctx:
             schema.add_arbitrary('my_arbitrary', type='int')
 
-        self.assertEqual(str(ctx.exception), "Arbitrary 'my_arbitrary' is already defined.")
+        self.assertEqual( "Arbitrary 'my_arbitrary' is already defined.", str(ctx.exception))
 
     def test_raises_error_if_register_same_arbitrary_multiple_times(self):
         schema = Schema()
@@ -113,7 +111,7 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(SchemaError) as ctx:
             schema.add_column('A', type='int')
 
-        self.assertEqual(str(ctx.exception), "Column 'A' is already defined.")
+        self.assertEqual( "Column 'A' is already defined.", str(ctx.exception))
 
 
     def test_can_mix_reference_and_auto_generated_arbitraries(self):
@@ -122,17 +120,17 @@ class TestSchema(unittest.TestCase):
         schema.add_column('A', arbitrary='my_arbitrary')
         schema.add_column('B', type='int')
         arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(len(arbitraries), 2)
-        self.assertEqual(arbitraries[0], SimpleNamespace(name='column#1', type='int', config={}))
-        self.assertEqual(arbitraries[1], SimpleNamespace(name='my_arbitrary', type='int', config={}))
+        self.assertEqual( 2, len(arbitraries))
+        self.assertEqual( SimpleNamespace(name='B', type='int', config={}), arbitraries[0])
+        self.assertEqual( SimpleNamespace(name='my_arbitrary', type='int', config={}), arbitraries[1])
 
     def test_can_add_a_transformer(self):
         schema = Schema()
         schema.add_column('A', type='int')
         add_one = FunctionalTransformer(lambda x: x+1)
         schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=add_one)
-        self.assertEqual(len(schema.transformers), 1)
-        self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A'], outputs=['A'], transformer=add_one))
+        self.assertEqual( 1, len(schema.transformers))
+        self.assertEqual( SimpleNamespace(name='my_transformer', inputs=['A'], outputs=['A'], transformer=add_one), schema.transformers[0])
 
     def test_can_use_transformer_to_filter_value(self):
         schema = Schema()
@@ -143,8 +141,8 @@ class TestSchema(unittest.TestCase):
 
         ret_none = FunctionalTransformer(test_transformer)
         schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
-        self.assertEqual(len(schema.transformers), 1)
-        self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none))
+        self.assertEqual( 1, len(schema.transformers))
+        self.assertEqual( SimpleNamespace(name='my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none), schema.transformers[0])
 
     def test_raises_an_error_if_inputs_do_not_exist(self):
         schema = Schema()
@@ -153,7 +151,7 @@ class TestSchema(unittest.TestCase):
         ret_none = FunctionalTransformer(lambda x: None)
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['B'], outputs=['A'], transformer=ret_none)
-        self.assertEqual(str(ctx.exception), "Inputs: 'B' are not defined in the schema.")
+        self.assertEqual( "Inputs: 'B' are not defined in the schema.", str(ctx.exception))
 
     def test_raises_an_error_if_outputs_do_not_exist(self):
         schema = Schema()
@@ -162,7 +160,7 @@ class TestSchema(unittest.TestCase):
         ret_none = FunctionalTransformer(lambda x: None)
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['B'], transformer=ret_none)
-        self.assertEqual(str(ctx.exception), "Outputs: 'B' are not defined in the schema.")
+        self.assertEqual( "Outputs: 'B' are not defined in the schema.", str(ctx.exception))
 
     def test_raises_an_error_if_num_inputs_do_not_match_arity(self):
         schema = Schema()
@@ -172,7 +170,7 @@ class TestSchema(unittest.TestCase):
         ret_none = FunctionalTransformer(lambda x: None)
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A', 'B'], outputs=['B'], transformer=ret_none)
-        self.assertEqual(str(ctx.exception), "Got 2 inputs: 'A', 'B' but transformer's arity is 1.")
+        self.assertEqual( "Got 2 inputs: 'A', 'B' but transformer's arity is 1.", str(ctx.exception))
 
     def test_raises_an_error_if_num_outputs_do_not_match_arity(self):
         schema = Schema()
@@ -182,7 +180,7 @@ class TestSchema(unittest.TestCase):
         ret_none = FunctionalTransformer(lambda x: None)
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A', 'B'], transformer=ret_none)
-        self.assertEqual(str(ctx.exception), "Got 2 outputs: 'A', 'B' but transformer's number of outputs is 1.")
+        self.assertEqual( "Got 2 outputs: 'A', 'B' but transformer's number of outputs is 1.", str(ctx.exception))
 
     def test_raises_an_error_if_double_output_name(self):
         schema = Schema()
@@ -192,7 +190,7 @@ class TestSchema(unittest.TestCase):
         ret_none = FunctionalTransformer(lambda x: None, num_outputs=2)
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A', 'A'], transformer=ret_none)
-        self.assertEqual(str(ctx.exception), "Outputs must be unique. Got multiple 'A' outputs.")
+        self.assertEqual( "Outputs must be unique. Got multiple 'A' outputs.", str(ctx.exception))
 
     def test_can_repeat_input_name_of_transformer(self):
         schema = Schema()
@@ -202,7 +200,7 @@ class TestSchema(unittest.TestCase):
         ret_none = FunctionalTransformer(lambda x, y: x+y)
         schema.add_transformer('my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none)
         self.assertEqual(len(schema.transformers), 1)
-        self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none))
+        self.assertEqual( SimpleNamespace(name='my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none), schema.transformers[0])
 
     def test_raises_error_if_register_same_transformer_multiple_times(self):
         schema = Schema()
@@ -212,7 +210,7 @@ class TestSchema(unittest.TestCase):
         schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
-        self.assertEqual(str(ctx.exception), "Transformer 'my_transformer' is already defined.")
+        self.assertEqual( "Transformer 'my_transformer' is already defined.", str(ctx.exception))
 
 
 @unittest.skip
@@ -220,7 +218,7 @@ class TestSchemaParsing(unittest.TestCase):
 
     def test_can_parse_header_from_json_schema(self):
         schema = Schema.parse('{"version": "1.0", "header": ["A", "B", "C"]}')
-        self.assertEqual(schema.header(), ('A', 'B', 'C'))
+        self.assertEqual(schema.columns, ('A', 'B', 'C'))
 
     def test_json_schema_must_have_version(self):
         with self.assertRaises(MissingVersionError):

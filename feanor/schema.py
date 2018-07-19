@@ -25,6 +25,31 @@ class InvalidVersionNumberError(SchemaParsingError):
         super().__init__(repr(version))
 
 
+class SchemaRef:
+    def __init__(self, name, scope):
+        self.name = name
+        self.scope = scope
+
+    def __eq__(self, other):
+        return isinstance(other, SchemaRef) and self.name == other.name and self.scope == other.scope
+
+    def __hash__(self):
+        return hash((self.name, self.scope))
+
+    @classmethod
+    def valid_scopes(cls):
+        return {'cols', 'vals'}
+
+    @classmethod
+    def parse(cls, ref):
+        if '@' in ref:
+            name, scope = ref.split('@')
+            if scope not in cls.valid_scopes():
+                raise SchemaError('Scope {!r} is not valid.'.format(scope))
+            return SchemaRef(name, scope)
+        return SchemaRef(ref, 'cols')
+
+
 class Schema:
     def __init__(self, *, show_header=True):
         self._show_header = show_header
@@ -34,7 +59,7 @@ class Schema:
 
     @property
     def columns(self):
-        return [SimpleNamespace(**column) for column in self._columns]
+        return tuple(self._columns)
 
     @property
     def arbitraries(self):
@@ -56,7 +81,7 @@ class Schema:
         return self._show_header
 
     def add_column(self, name, *, arbitrary=None, type=None, config=None):
-        if name in self.header():
+        if name in self._columns:
             raise SchemaError('Column {!r} is already defined.'.format(name))
 
         if arbitrary is not None is not type:
@@ -67,17 +92,15 @@ class Schema:
         if arbitrary is not None:
             if arbitrary not in self._arbitraries:
                 raise SchemaError('Arbitrary {!r} does not exist.'.format(arbitrary))
-            arbitrary_name = arbitrary
+            self.add_transformer(name, transformer=ProjectionTransformer(1, 0), inputs=[arbitrary], outputs=[arbitrary])
+            # FIXME: this is a hack to avoid adding&removing a column if an error occurs durign the above call...
+            self._transformers[-1]['outputs'] = [name]
         elif type is not None:
-            arbitrary_name = 'column#%d' % len(self._columns)
-            self.add_arbitrary(arbitrary_name, type=type, config=config)
+            self.add_arbitrary(name, type=type, config=config)
         else:
             raise TypeError('You must specify either the type of the column or an associated arbitrary.')
 
-        self._columns.append({
-            'name': name,
-            'generator': arbitrary_name,
-        })
+        self._columns.append(name)
 
     def add_arbitrary(self, name, *, type, config=None):
         """Register an arbitrary to the schema."""
@@ -95,7 +118,7 @@ class Schema:
         if len(outputs) != transformer.num_outputs:
             msg = 'Got {} outputs: {} but transformer\'s number of outputs is {.num_outputs}.'
             raise SchemaError(msg.format(len(outputs), to_string_list(outputs), transformer))
-        defined_names = self._arbitraries.keys() | set(self.header())
+        defined_names = self._arbitraries.keys() | set(self._columns)
         undefined_inputs = set(inputs) - defined_names
         undefined_outputs = set(outputs) - defined_names
         if undefined_inputs:
@@ -115,10 +138,6 @@ class Schema:
             'inputs': inputs,
             'outputs': outputs,
         })
-
-
-    def header(self):
-        return tuple(column['name'] for column in self._columns)
 
     @classmethod
     def parse(cls, text):
@@ -160,10 +179,28 @@ class FunctionalTransformer(Transformer):
 
     def __call__(self, inputs):
         super().__call__(inputs)
-        return self._callable(*inputs)
+        result = self._callable(*inputs)
+        if self.num_outputs == 1:
+            return (result,)
+        return result
 
     def __eq__(self, other):
         return isinstance(other, FunctionalTransformer) and self.__dict__ == other.__dict__
 
     def __hash__(self):
         return hash(self._callable)
+
+
+class ProjectionTransformer(Transformer):
+    def __init__(self, arity, index):
+        super().__init__(arity, 1)
+        self._index = index
+
+    def __call__(self, inputs):
+        return (inputs[self._index],)
+
+    def __eq__(self, other):
+        return isinstance(other, ProjectionTransformer) and self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(tuple(sorted(self.__dict__.items())))

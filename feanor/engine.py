@@ -17,28 +17,36 @@ class Engine:
 
     def _schema_to_generator(self, schema):
         arbitraries = {arbitrary.name: self._env[arbitrary.type](self._random_funcs, config=arbitrary.config) for arbitrary in schema.arbitraries}
-        arbitraries_repeats = Counter(column.generator for column in schema.columns)
-        for arbitrary, count in arbitraries_repeats.items():
-            if count > 1:
-                arbitraries[arbitrary] = RepeaterArbitrary(self._random_funcs, arbitraries[arbitrary], {'num_repeats': count})
-
-        return MultiArbitrary(
-            self._random_funcs,
-            (arbitraries[column.generator] for column in schema.columns)
-        )
+        return DataGenerator(schema.columns, arbitraries, schema.transformers)
 
     @property
     def number_of_columns(self):
-        return self._generator.number_of_columns
-
-    @property
-    def columns(self):
-        return self._generator
+        return len(self._generator._columns)
 
     def generate_data(self, number_of_rows=float('+inf')):
         while number_of_rows > 0:
             yield self._generator()
             number_of_rows -= 1
+
+
+class DataGenerator:
+    def __init__(self, columns, arbitraries, transformers):
+        self._transformers = tuple(transformers)
+        self._arbitraries = arbitraries
+        self._columns = tuple(columns)
+
+    @property
+    def columns(self):
+        return self._columns
+
+    def __call__(self):
+        env = {name: arbitrary() for name, arbitrary in self._arbitraries.items()}
+        for transformer in self._transformers:
+            output_values = transformer.transformer([env[input_name] for input_name in transformer.inputs])
+            for name, value in zip(transformer.outputs, output_values):
+                env[name] = value
+
+        return tuple(env[name] for name in self._columns)
 
 
 def generate_data(schema, output_file, *, number_of_rows=None, byte_count=None, stream_mode=False):
@@ -89,6 +97,6 @@ def _generate_data_stream(schema, output_file):
 def _make_stream_of_data(schema, number_of_rows=float('+inf')):
     engine = Engine(schema)
     if schema.show_header:
-        yield schema.header()
+        yield schema.columns
 
     yield from engine.generate_data(number_of_rows)

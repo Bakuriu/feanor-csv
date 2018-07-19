@@ -14,7 +14,7 @@ class TestEngine(unittest.TestCase):
         config = {
             'random': {(): [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]},
             'randint': {
-                'default': lambda a, b: values.pop() % b,
+                'default': lambda a, b: a + (values.pop() % b),
             }
         }
         self.rand = FakeRandom.from_dict(config)
@@ -27,9 +27,9 @@ class TestEngine(unittest.TestCase):
         engine = Engine(schema, random_funcs=self.rand)
 
         self.assertEqual(3, engine.number_of_columns)
-        self.assertEqual('int', engine.columns[0].type)
-        self.assertEqual('int', engine.columns[1].type)
-        self.assertEqual('int', engine.columns[2].type)
+        values = list(engine.generate_data(1))
+        self.assertEqual(1, len(values))
+        self.assertEqual((0, 1, 2), values[0])
 
     def test_can_build_a_generator_from_a_schema_with_config(self):
         schema = Schema()
@@ -37,8 +37,8 @@ class TestEngine(unittest.TestCase):
         engine = Engine(schema, random_funcs=self.rand)
 
         self.assertEqual(1, engine.number_of_columns)
-        self.assertEqual('int', engine.columns[0].type)
-        self.assertEqual(10, engine.columns[0].config.lowerbound)
+        values = set(engine.generate_data(20))
+        self.assertEqual({(v,) for v in range(10, 30)}, values)
 
     def test_can_generate_arbitrary_data_with_number_of_rows(self):
         schema = Schema()
@@ -79,7 +79,7 @@ class TestEngine(unittest.TestCase):
     def test_can_generate_two_identical_columns_by_referencing_name_of_auto_created_arbitrary(self):
         schema = Schema()
         schema.add_column('A', type='int')
-        schema.add_column('B', arbitrary='column#0')
+        schema.add_column('B', arbitrary='A')
 
         engine = Engine(schema, random_funcs=self.rand)
         generated_values = list(engine.generate_data(number_of_rows=10))
