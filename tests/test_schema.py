@@ -99,6 +99,23 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(TypeError):
             schema.add_column('A', config={'a':1})
 
+    def test_raises_error_if_register_same_column_multiple_times(self):
+        schema = Schema()
+        schema.add_arbitrary('my_arbitrary', type='int')
+        with self.assertRaises(SchemaError) as ctx:
+            schema.add_arbitrary('my_arbitrary', type='int')
+
+        self.assertEqual(str(ctx.exception), "Arbitrary 'my_arbitrary' is already defined.")
+
+    def test_raises_error_if_register_same_arbitrary_multiple_times(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        with self.assertRaises(SchemaError) as ctx:
+            schema.add_column('A', type='int')
+
+        self.assertEqual(str(ctx.exception), "Column 'A' is already defined.")
+
+
     def test_can_mix_reference_and_auto_generated_arbitraries(self):
         schema = Schema()
         schema.add_arbitrary('my_arbitrary', type='int')
@@ -134,16 +151,18 @@ class TestSchema(unittest.TestCase):
         schema.add_column('A', type='int')
 
         ret_none = FunctionalTransformer(lambda x: None)
-        with self.assertRaises(SchemaError, msg="Inputs: 'B' are not defined in the schema."):
+        with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['B'], outputs=['A'], transformer=ret_none)
+        self.assertEqual(str(ctx.exception), "Inputs: 'B' are not defined in the schema.")
 
     def test_raises_an_error_if_outputs_do_not_exist(self):
         schema = Schema()
         schema.add_column('A', type='int')
 
         ret_none = FunctionalTransformer(lambda x: None)
-        with self.assertRaises(SchemaError, msg="Outputs: 'B' are not defined in the schema."):
+        with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['B'], transformer=ret_none)
+        self.assertEqual(str(ctx.exception), "Outputs: 'B' are not defined in the schema.")
 
     def test_raises_an_error_if_num_inputs_do_not_match_arity(self):
         schema = Schema()
@@ -151,8 +170,9 @@ class TestSchema(unittest.TestCase):
         schema.add_column('B', type='int')
 
         ret_none = FunctionalTransformer(lambda x: None)
-        with self.assertRaises(SchemaError, msg="Got 2 inputs: 'A', 'A' but transformer's arity is 1."):
+        with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A', 'B'], outputs=['B'], transformer=ret_none)
+        self.assertEqual(str(ctx.exception), "Got 2 inputs: 'A', 'B' but transformer's arity is 1.")
 
     def test_raises_an_error_if_num_outputs_do_not_match_arity(self):
         schema = Schema()
@@ -160,17 +180,19 @@ class TestSchema(unittest.TestCase):
         schema.add_column('B', type='int')
 
         ret_none = FunctionalTransformer(lambda x: None)
-        with self.assertRaises(SchemaError, msg="Got two outputs: 'A', 'B' but transformer's number of outputs is 1."):
+        with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A', 'B'], transformer=ret_none)
+        self.assertEqual(str(ctx.exception), "Got 2 outputs: 'A', 'B' but transformer's number of outputs is 1.")
 
     def test_raises_an_error_if_double_output_name(self):
         schema = Schema()
         schema.add_column('A', type='int')
         schema.add_column('B', type='int')
 
-        ret_none = FunctionalTransformer(lambda x, y: None, num_outputs=2)
-        with self.assertRaises(SchemaError, msg="Outputs must be unique. Got multiple 'A' outputs."):
+        ret_none = FunctionalTransformer(lambda x: None, num_outputs=2)
+        with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A', 'A'], transformer=ret_none)
+        self.assertEqual(str(ctx.exception), "Outputs must be unique. Got multiple 'A' outputs.")
 
     def test_can_repeat_input_name_of_transformer(self):
         schema = Schema()
@@ -181,6 +203,16 @@ class TestSchema(unittest.TestCase):
         schema.add_transformer('my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none)
         self.assertEqual(len(schema.transformers), 1)
         self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none))
+
+    def test_raises_error_if_register_same_transformer_multiple_times(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+
+        ret_none = FunctionalTransformer(lambda x: None)
+        schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
+        with self.assertRaises(SchemaError) as ctx:
+            schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
+        self.assertEqual(str(ctx.exception), "Transformer 'my_transformer' is already defined.")
 
 
 @unittest.skip

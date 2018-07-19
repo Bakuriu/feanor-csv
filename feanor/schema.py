@@ -56,6 +56,9 @@ class Schema:
         return self._show_header
 
     def add_column(self, name, *, arbitrary=None, type=None, config=None):
+        if name in self.header():
+            raise SchemaError('Column {!r} is already defined.'.format(name))
+
         if arbitrary is not None is not type:
             raise TypeError('Cannot specify both arbitrary and type.')
         if arbitrary is not None is not config:
@@ -78,10 +81,14 @@ class Schema:
 
     def add_arbitrary(self, name, *, type, config=None):
         """Register an arbitrary to the schema."""
+        if name in self._arbitraries:
+            raise SchemaError('Arbitrary {!r} is already defined.'.format(name))
         self._arbitraries[name] = {'type': type, 'config': config or {}}
 
     def add_transformer(self, name, *, transformer, inputs, outputs):
         """Register a transformer to the schema."""
+        if name in self._transformers:
+            raise SchemaError('Transformer {!r} is already defined.'.format(name))
         if len(inputs) != transformer.arity:
             msg = 'Got {} inputs: {} but transformer\'s arity is {.arity}.'
             raise SchemaError(msg.format(len(inputs), to_string_list(inputs), transformer))
