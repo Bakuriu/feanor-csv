@@ -76,7 +76,7 @@ class Schema:
 
         self._columns.append({
             'name': name,
-            'arbitrary': arbitrary_name,
+            'generator': arbitrary_name,
         })
 
     def add_arbitrary(self, name, *, type, config=None):
