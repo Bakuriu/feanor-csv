@@ -30,7 +30,7 @@ class Schema:
         self._show_header = show_header
         self._columns = []
         self._arbitraries = {}
-        self._transformers = {}
+        self._transformers = []
 
     @property
     def columns(self):
@@ -49,7 +49,7 @@ class Schema:
         """The transformers used in the schema.
 
         Note: the order of the returned list is undefined."""
-        return [SimpleNamespace(name=name, **values) for name, values in self._transformers.items()]
+        return [SimpleNamespace(**transformer) for transformer in self._transformers]
 
     @property
     def show_header(self):
@@ -87,7 +87,7 @@ class Schema:
 
     def add_transformer(self, name, *, transformer, inputs, outputs):
         """Register a transformer to the schema."""
-        if name in self._transformers:
+        if name in (trans['name'] for trans in self._transformers):
             raise SchemaError('Transformer {!r} is already defined.'.format(name))
         if len(inputs) != transformer.arity:
             msg = 'Got {} inputs: {} but transformer\'s arity is {.arity}.'
@@ -109,11 +109,12 @@ class Schema:
             multi_outputs = sorted(output_counts, key=lambda output: outputs.index(output))
             raise SchemaError('Outputs must be unique. Got multiple {} outputs.'.format(to_string_list(multi_outputs)))
 
-        self._transformers[name] = {
+        self._transformers.append({
+            'name': name,
             'transformer': transformer,
             'inputs': inputs,
             'outputs': outputs,
-        }
+        })
 
 
     def header(self):
