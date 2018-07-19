@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from feanor.schema import Schema, MissingVersionError, InvalidVersionNumberError
+from feanor.schema import Schema, MissingVersionError, InvalidVersionNumberError, FunctionalTransformer, SchemaError
 
 
 class TestSchema(unittest.TestCase):
@@ -108,6 +108,79 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(len(arbitraries), 2)
         self.assertEqual(arbitraries[0], SimpleNamespace(name='column#1', type='int', config={}))
         self.assertEqual(arbitraries[1], SimpleNamespace(name='my_arbitrary', type='int', config={}))
+
+    def test_can_add_a_transformer(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        add_one = FunctionalTransformer(lambda x: x+1)
+        schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=add_one)
+        self.assertEqual(len(schema.transformers), 1)
+        self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A'], outputs=['A'], transformer=add_one))
+
+    def test_can_use_transformer_to_filter_value(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+
+        def test_transformer(unused):
+            return None
+
+        ret_none = FunctionalTransformer(test_transformer)
+        schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
+        self.assertEqual(len(schema.transformers), 1)
+        self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none))
+
+    def test_raises_an_error_if_inputs_do_not_exist(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+
+        ret_none = FunctionalTransformer(lambda x: None)
+        with self.assertRaises(SchemaError, msg="Inputs: 'B' are not defined in the schema."):
+            schema.add_transformer('my_transformer', inputs=['B'], outputs=['A'], transformer=ret_none)
+
+    def test_raises_an_error_if_outputs_do_not_exist(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+
+        ret_none = FunctionalTransformer(lambda x: None)
+        with self.assertRaises(SchemaError, msg="Outputs: 'B' are not defined in the schema."):
+            schema.add_transformer('my_transformer', inputs=['A'], outputs=['B'], transformer=ret_none)
+
+    def test_raises_an_error_if_num_inputs_do_not_match_arity(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        schema.add_column('B', type='int')
+
+        ret_none = FunctionalTransformer(lambda x: None)
+        with self.assertRaises(SchemaError, msg="Got 2 inputs: 'A', 'A' but transformer's arity is 1."):
+            schema.add_transformer('my_transformer', inputs=['A', 'B'], outputs=['B'], transformer=ret_none)
+
+    def test_raises_an_error_if_num_outputs_do_not_match_arity(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        schema.add_column('B', type='int')
+
+        ret_none = FunctionalTransformer(lambda x: None)
+        with self.assertRaises(SchemaError, msg="Got two outputs: 'A', 'B' but transformer's number of outputs is 1."):
+            schema.add_transformer('my_transformer', inputs=['A'], outputs=['A', 'B'], transformer=ret_none)
+
+    def test_raises_an_error_if_double_output_name(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        schema.add_column('B', type='int')
+
+        ret_none = FunctionalTransformer(lambda x, y: None, num_outputs=2)
+        with self.assertRaises(SchemaError, msg="Outputs must be unique. Got multiple 'A' outputs."):
+            schema.add_transformer('my_transformer', inputs=['A'], outputs=['A', 'A'], transformer=ret_none)
+
+    def test_can_repeat_input_name_of_transformer(self):
+        schema = Schema()
+        schema.add_column('A', type='int')
+        schema.add_column('B', type='int')
+
+        ret_none = FunctionalTransformer(lambda x, y: x+y)
+        schema.add_transformer('my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none)
+        self.assertEqual(len(schema.transformers), 1)
+        self.assertEqual(schema.transformers[0], SimpleNamespace(name='my_transformer', inputs=['A', 'A'], outputs=['A'], transformer=ret_none))
 
 
 @unittest.skip
