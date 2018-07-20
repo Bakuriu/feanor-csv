@@ -1,6 +1,8 @@
 from setuptools import setup, find_packages
 from os import path
 
+from feanor import __version__
+
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
@@ -10,7 +12,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='feanor-csv',
-    version='0.1.0',
+    version=__version__,
     description='The ultimate CSV artisan.',
     long_description=long_description,
     long_description_content_type='text/markdown',
