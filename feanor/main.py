@@ -43,14 +43,12 @@ def main():
 
 def make_schema(columns, arbitraries, transformers, show_header):
     schema = Schema(show_header=show_header)
-    #for column in columns:
-    #    schema.add_column(column)
+    for column in columns:
+        schema.add_column(column)
     for name, (arbitrary_type, config) in arbitraries:
         schema.add_arbitrary(name, type=arbitrary_type, config=config)
     for name, (inputs, outputs, transformer) in transformers:
         schema.add_transformer(name, inputs=inputs, outputs=outputs, transformer=transformer)
-    for name, (col_type, config, arbitrary) in columns:
-        schema.define_column(name, arbitrary=arbitrary, type=col_type, config=config or None)
     return schema
 
 
