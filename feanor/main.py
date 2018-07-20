@@ -28,7 +28,7 @@ def main():
                         default=sys.stdout, type=argparse.FileType('w'))
 
     args = parser.parse_args()
-    schema = make_schema(args.arbitraries, args.columns, args.show_header)
+    schema = make_schema(args.columns, args.arbitraries, args.show_header, )
 
     size_dict = {}
     if args.stream_mode is not None:
@@ -41,7 +41,7 @@ def main():
     generate_data(schema, args.output_file, **size_dict)
 
 
-def make_schema(arbitraries, columns, transformers, show_header):
+def make_schema(columns, arbitraries, transformers, show_header):
     schema = Schema(show_header=show_header)
     #for column in columns:
     #    schema.add_column(column)
