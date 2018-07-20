@@ -36,6 +36,7 @@ class RepeaterArbitrary(Arbitrary):
     the wrapped arbitrary.
 
     """
+
     def __init__(self, random_funcs, arbitrary, config=None):
         super().__init__(random_funcs, 'repeater', config)
         self._arbitrary = arbitrary

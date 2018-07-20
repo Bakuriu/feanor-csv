@@ -28,16 +28,16 @@ class TestIntArbitrary(unittest.TestCase):
 
     def test_can_specify_lowerbound(self):
         arbitrary = IntArbitrary(random_funcs=self.rand, config={'lowerbound': 10})
-        self.assertEqual(arbitrary.config.lowerbound, 10)
+        self.assertEqual(10, arbitrary.config.lowerbound)
 
     def test_can_specify_upperbound(self):
         arbitrary = IntArbitrary(random_funcs=self.rand, config={'upperbound': 10})
-        self.assertEqual(arbitrary.config.upperbound, 10)
+        self.assertEqual(10, arbitrary.config.upperbound)
 
     def test_can_specify_bounds(self):
         arbitrary = IntArbitrary(random_funcs=self.rand, config={'lowerbound': 10, 'upperbound': 11})
-        self.assertEqual(arbitrary.config.lowerbound, 10)
-        self.assertEqual(arbitrary.config.upperbound, 11)
+        self.assertEqual(10, arbitrary.config.lowerbound)
+        self.assertEqual(11, arbitrary.config.upperbound)
 
 
 class TestMultiArbitrary(unittest.TestCase):
@@ -54,7 +54,7 @@ class TestMultiArbitrary(unittest.TestCase):
                                    [IntArbitrary(random_funcs=self.rand), IntArbitrary(random_funcs=self.rand)])
         value = arbitrary()
         self.assertIsInstance(value, tuple)
-        self.assertEqual(len(value), 2)
+        self.assertEqual(2, len(value))
         self.assertIsInstance(value[0], int)
         self.assertIsInstance(value[1], int)
         self.assertNotEqual(value[0], value[1])
@@ -63,17 +63,17 @@ class TestMultiArbitrary(unittest.TestCase):
 class TestFixedArbitrary(unittest.TestCase):
     def test_always_returns_same_value(self):
         arbitrary = FixedArbitrary(FakeRandom(), config={'value': 5})
-        self.assertEqual([arbitrary() for _ in range(10)], [5] * 10)
+        self.assertEqual([5] * 10, [arbitrary() for _ in range(10)])
 
 
 class TestCyclingArbitrary(unittest.TestCase):
     def test_always_returns_same_value(self):
         arbitrary = CyclingArbitrary(FakeRandom(), config={'values': range(5)})
-        self.assertEqual([arbitrary() for _ in range(20)], list(islice(cycle(range(5)), 20)))
+        self.assertEqual(list(islice(cycle(range(5)), 20)), [arbitrary() for _ in range(20)])
 
 
 class TestRepeaterArbitrary(unittest.TestCase):
     def test_can_repeat_value(self):
         orig_arbitrary = CyclingArbitrary(FakeRandom(), {'values': range(3)})
         arbitrary = RepeaterArbitrary(FakeRandom(), orig_arbitrary, {'num_repeats': 3})
-        self.assertEqual([arbitrary() for _ in range(9)], [0, 0, 0, 1, 1, 1, 2, 2, 2])
+        self.assertEqual([0, 0, 0, 1, 1, 1, 2, 2, 2], [arbitrary() for _ in range(9)])
