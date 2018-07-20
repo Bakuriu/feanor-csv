@@ -64,7 +64,7 @@ def parse_type(arbitrary_type):
     """
     match = ARBITRARY_TYPE_REGEX.match(arbitrary_type)
     if not match:
-        raise ParsingError('Expression does not describe an arbitrary type:\n{!r}\ndoes not match regex: "(?s)\w+{{.*\}$"'.format(arbitrary_type))
+        raise ParsingError('Expression does not describe an arbitrary type:\n{!r}\ndoes not match regex: "(?s)\w+{{.*\}}$"'.format(arbitrary_type))
 
     type_name, config = match.groups()
     if config is not None:
