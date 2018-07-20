@@ -8,12 +8,28 @@ from feanor.schema import (
 
 
 class TestSchema(unittest.TestCase):
-    def test_can_obtain_the_header_from_a_schema(self):
+    def test_can_add_columns_to_a_schema(self):
         schema = Schema()
-        schema.define_column('A', type='int')
-        schema.define_column('B', type='int')
-        schema.define_column('C', type='int')
+        schema.add_column('A')
+        schema.add_column('B')
+        schema.add_column('C')
         self.assertEqual(('A', 'B', 'C'), schema.columns)
+
+    def test_add_column_raises_error_if_column_is_already_defined(self):
+        schema = Schema()
+        schema.add_column('A')
+        with self.assertRaises(SchemaError) as ctx:
+            schema.add_column('A')
+
+        self.assertEqual("Column 'A' is already defined.", str(ctx.exception))
+
+    def test_add_column_does_not_add_a_column_if_it_raises_error(self):
+        schema = Schema()
+        schema.add_column('A')
+        with self.assertRaises(SchemaError):
+            schema.add_column('A')
+
+        self.assertEqual(('A',), schema.columns)
 
     def test_can_obtain_a_column_type(self):
         schema = Schema()

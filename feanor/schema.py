@@ -80,6 +80,16 @@ class Schema:
     def show_header(self):
         return self._show_header
 
+    def add_column(self, name):
+        """Add a column with the given name to the schema.
+
+        :raises SchemaError: when the `name` already exists.
+
+        """
+        if name in self._columns:
+            raise SchemaError('Column {!r} is already defined.'.format(name))
+        self._columns.append(name)
+
     def define_column(self, name, *, arbitrary=None, type=None, config=None):
         if name in self._columns:
             raise SchemaError('Column {!r} is already defined.'.format(name))
