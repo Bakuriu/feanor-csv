@@ -25,31 +25,6 @@ class InvalidVersionNumberError(SchemaParsingError):
         super().__init__(repr(version))
 
 
-class SchemaRef:
-    def __init__(self, name, scope):
-        self.name = name
-        self.scope = scope
-
-    def __eq__(self, other):
-        return isinstance(other, SchemaRef) and self.name == other.name and self.scope == other.scope
-
-    def __hash__(self):
-        return hash((self.name, self.scope))
-
-    @classmethod
-    def valid_scopes(cls):
-        return {'cols', 'vals'}
-
-    @classmethod
-    def parse(cls, ref):
-        if '@' in ref:
-            name, scope = ref.split('@')
-            if scope not in cls.valid_scopes():
-                raise SchemaError('Scope {!r} is not valid.'.format(scope))
-            return SchemaRef(name, scope)
-        return SchemaRef(ref, 'cols')
-
-
 class Schema:
     def __init__(self, *, show_header=True):
         self._show_header = show_header
