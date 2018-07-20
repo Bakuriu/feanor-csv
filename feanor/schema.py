@@ -42,14 +42,14 @@ class Schema:
 
         Note: the order of the returned list is undefined.
         """
-        return [SimpleNamespace(name=name, **values) for name, values in self._arbitraries.items()]
+        return tuple(SimpleNamespace(name=name, **values) for name, values in self._arbitraries.items())
 
     @property
     def transformers(self):
         """The transformers used in the schema.
 
         Note: the order of the returned list is undefined."""
-        return [SimpleNamespace(**transformer) for transformer in self._transformers]
+        return tuple(SimpleNamespace(**transformer) for transformer in self._transformers)
 
     @property
     def show_header(self):
