@@ -7,7 +7,7 @@ from feanor.schema import ProjectionTransformer
 
 class TestMakeSchema(unittest.TestCase):
     def test_can_make_schema_with_a_single_column(self):
-        schema = make_schema([], [('A', ('int', None, None))], show_header=True)
+        schema = make_schema([], [('A', ('int', None, None))], [], show_header=True)
         self.assertTrue(schema.show_header)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -15,7 +15,7 @@ class TestMakeSchema(unittest.TestCase):
         self.assertEqual(0, len(schema.transformers))
 
     def test_can_make_schema_with_a_single_column_using_explicit_arbitrary(self):
-        schema = make_schema([('bob', ('int', None))], [('A', (None, None, 'bob'))], show_header=True)
+        schema = make_schema([('bob', ('int', None))], [('A', (None, None, 'bob'))], [], show_header=True)
         self.assertTrue(schema.show_header)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -25,7 +25,7 @@ class TestMakeSchema(unittest.TestCase):
         self.assertEqual(expected_tr, schema.transformers[0])
 
     def test_can_make_schema_with_multiple_columns(self):
-        schema = make_schema([], [('A', ('int', None, None)), ('B', ('int', None, None))], show_header=True)
+        schema = make_schema([], [('A', ('int', None, None)), ('B', ('int', None, None))], [], show_header=True)
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         arbitraries = sorted(schema.arbitraries, key= lambda x: x.name)
@@ -35,7 +35,7 @@ class TestMakeSchema(unittest.TestCase):
         self.assertEqual(0, len(schema.transformers))
 
     def test_can_make_schema_with_multiple_columns_using_explicit_arbitrary(self):
-        schema = make_schema([('bob', ('int', None))], [('A', (None, None, 'bob')), ('B', ('int', None, None))], show_header=True)
+        schema = make_schema([('bob', ('int', None))], [('A', (None, None, 'bob')), ('B', ('int', None, None))], [], show_header=True)
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
@@ -47,7 +47,7 @@ class TestMakeSchema(unittest.TestCase):
         self.assertEqual(expected_tr, schema.transformers[0])
 
     def test_can_make_schema_with_show_header_false(self):
-        schema = make_schema([], [('A', ('int', None, None))], show_header=False)
+        schema = make_schema([], [('A', ('int', None, None))], [], show_header=False)
         self.assertFalse(schema.show_header)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -55,7 +55,7 @@ class TestMakeSchema(unittest.TestCase):
         self.assertEqual(0, len(schema.transformers))
 
     def test_can_make_schema_without_columns(self):
-        schema = make_schema([], [], show_header=False)
+        schema = make_schema([], [], [], show_header=False)
         self.assertFalse(schema.show_header)
         self.assertEqual((), schema.columns)
         self.assertEqual((), schema.arbitraries)

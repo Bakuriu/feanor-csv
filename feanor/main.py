@@ -41,10 +41,14 @@ def main():
     generate_data(schema, args.output_file, **size_dict)
 
 
-def make_schema(arbitraries, columns, show_header):
+def make_schema(arbitraries, columns, transformers, show_header):
     schema = Schema(show_header=show_header)
+    #for column in columns:
+    #    schema.add_column(column)
     for name, (arbitrary_type, config) in arbitraries:
         schema.add_arbitrary(name, type=arbitrary_type, config=config)
+    for name, (inputs, outputs, transformer) in transformers:
+        schema.add_transformer(name, inputs=inputs, outputs=outputs, transformer=transformer)
     for name, (col_type, config, arbitrary) in columns:
         schema.define_column(name, arbitrary=arbitrary, type=col_type, config=config or None)
     return schema
