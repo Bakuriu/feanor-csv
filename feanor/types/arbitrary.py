@@ -71,5 +71,7 @@ def parse_type(arbitrary_type):
         try:
             config = ast.literal_eval(config)
         except SyntaxError:
-            raise ParsingError('Expression is not a valid dict literal: {!r}'.format(config))
+            raise ParsingError(f'Expression is not a valid dict literal: {repr(config)}')
+        except ValueError:
+            raise ParsingError(f'Expression is not a valid dict literal: {repr(config)}.\nMaybe you forgot to quote a key?')
     return type_name, (config or {})
