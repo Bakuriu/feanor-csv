@@ -46,7 +46,7 @@ def make_schema(arbitraries, columns, show_header):
     for name, (arbitrary_type, config) in arbitraries:
         schema.add_arbitrary(name, type=arbitrary_type, config=config)
     for name, (col_type, config, arbitrary) in columns:
-        schema.add_column(name, arbitrary=arbitrary, type=col_type, config=config or None)
+        schema.define_column(name, arbitrary=arbitrary, type=col_type, config=config or None)
     return schema
 
 

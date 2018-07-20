@@ -80,7 +80,7 @@ class Schema:
     def show_header(self):
         return self._show_header
 
-    def add_column(self, name, *, arbitrary=None, type=None, config=None):
+    def define_column(self, name, *, arbitrary=None, type=None, config=None):
         if name in self._columns:
             raise SchemaError('Column {!r} is already defined.'.format(name))
 
@@ -149,7 +149,7 @@ class Schema:
 
         schema = cls()
         for name in data['header']:
-            schema.add_column(name)
+            schema.define_column(name)
         return schema
 
 

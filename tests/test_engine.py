@@ -21,9 +21,9 @@ class TestEngine(unittest.TestCase):
 
     def test_can_build_a_generator_from_a_schema(self):
         schema = Schema()
-        schema.add_column('A', type='int')
-        schema.add_column('B', type='int')
-        schema.add_column('C', type='int')
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
         engine = Engine(schema, random_funcs=self.rand)
 
         self.assertEqual(3, engine.number_of_columns)
@@ -33,7 +33,7 @@ class TestEngine(unittest.TestCase):
 
     def test_can_build_a_generator_from_a_schema_with_config(self):
         schema = Schema()
-        schema.add_column('A', type='int', config={'lowerbound': 10})
+        schema.define_column('A', type='int', config={'lowerbound': 10})
         engine = Engine(schema, random_funcs=self.rand)
 
         self.assertEqual(1, engine.number_of_columns)
@@ -42,9 +42,9 @@ class TestEngine(unittest.TestCase):
 
     def test_can_generate_arbitrary_data_with_number_of_rows(self):
         schema = Schema()
-        schema.add_column('A', type='int')
-        schema.add_column('B', type='int')
-        schema.add_column('C', type='int')
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
         engine = Engine(schema, random_funcs=self.rand)
 
         generated_values = list(engine.generate_data(number_of_rows=10))
@@ -55,9 +55,9 @@ class TestEngine(unittest.TestCase):
 
     def test_can_generate_stream_of_data(self):
         schema = Schema()
-        schema.add_column('A', type='int')
-        schema.add_column('B', type='int')
-        schema.add_column('C', type='int')
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
         engine = Engine(schema, random_funcs=self.rand)
 
         generated_values = list(it.islice(engine.generate_data(), 1000))
@@ -68,8 +68,8 @@ class TestEngine(unittest.TestCase):
     def test_can_generate_two_identical_columns_by_referencing_same_arbitrary(self):
         schema = Schema()
         schema.add_arbitrary('bob', type='int')
-        schema.add_column('A', arbitrary='bob')
-        schema.add_column('B', arbitrary='bob')
+        schema.define_column('A', arbitrary='bob')
+        schema.define_column('B', arbitrary='bob')
 
         engine = Engine(schema, random_funcs=self.rand)
         generated_values = list(engine.generate_data(number_of_rows=10))
@@ -78,8 +78,8 @@ class TestEngine(unittest.TestCase):
 
     def test_can_generate_two_identical_columns_by_referencing_name_of_auto_created_arbitrary(self):
         schema = Schema()
-        schema.add_column('A', type='int')
-        schema.add_column('B', arbitrary='A')
+        schema.define_column('A', type='int')
+        schema.define_column('B', arbitrary='A')
 
         engine = Engine(schema, random_funcs=self.rand)
         generated_values = list(engine.generate_data(number_of_rows=10))
