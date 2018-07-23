@@ -8,5 +8,5 @@ from collections import namedtuple
 
 VersionInfo = namedtuple('VersionInfo', 'major minor micro releaselevel serial')
 
-version_info = VersionInfo(0, 2, 0, 'final', 0)
+version_info = VersionInfo(0, 2, 1, 'final', 0)
 __version__ = '.'.join(map(str, version_info[:3]))
