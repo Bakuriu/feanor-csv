@@ -2,6 +2,10 @@
 
 Feanor is an artisan of CSV files. It can generate complex CSV files or file bundles for examples and tests.
 
+**Note:** Feanor is currently in development. All releases prior to `1.0.0` should be considered alpha releases
+and both the command line interface and the library API might change significantly between releases.
+Release `1.0.0` will provide a stable API and stable command line interface for the `1.x` series.
+
 
 ## Usage
 
