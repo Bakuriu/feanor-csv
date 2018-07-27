@@ -29,7 +29,9 @@ setup(
     ],
     keywords='csv generation schema',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    install_requires=[],
+    install_requires=[
+        'ply',
+    ],
     extras_require={
         'dev': ['check-manifest'],
         'test': ['coverage'],

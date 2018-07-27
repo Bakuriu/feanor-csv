@@ -3,9 +3,7 @@ import ast
 from types import SimpleNamespace
 from abc import ABCMeta, abstractmethod
 
-
-class ParsingError(ValueError):
-    """Exception raised when the expression describing an arbitrary type is invalid."""
+from .dsl.ast import ParsingError
 
 
 class Arbitrary(metaclass=ABCMeta):

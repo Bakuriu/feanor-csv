@@ -3,7 +3,8 @@ import sys
 
 from .util import to_string_list
 from .schema import Schema, FunctionalTransformer
-from .types.arbitrary import parse_type, ParsingError
+from .arbitrary import parse_type
+from .dsl.ast import ParsingError
 from .engine import generate_data
 
 

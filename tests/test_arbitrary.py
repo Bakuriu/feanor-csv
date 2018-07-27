@@ -1,6 +1,6 @@
 import unittest
 
-from feanor.types.arbitrary import parse_type
+from feanor.arbitrary import parse_type
 
 
 class TestParseType(unittest.TestCase):

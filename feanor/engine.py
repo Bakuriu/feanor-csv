@@ -1,7 +1,6 @@
 import random
-from collections import Counter
 
-from .types.builtin import MultiArbitrary, IntArbitrary, RepeaterArbitrary
+from .builtin import IntArbitrary
 
 DEFAULT_ENVIRONMENT = {
     'int': IntArbitrary,

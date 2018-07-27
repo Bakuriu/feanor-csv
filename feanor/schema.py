@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 from collections import Counter
 from types import SimpleNamespace
 
-from feanor.util import to_string_list
+from .util import to_string_list
 
 
 class SchemaError(ValueError):

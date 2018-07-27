@@ -2,7 +2,7 @@ import unittest
 from itertools import cycle, islice
 
 from fake_random import FakeRandom
-from feanor.types.builtin import IntArbitrary, MultiArbitrary, FixedArbitrary, CyclingArbitrary, RepeaterArbitrary
+from feanor.builtin import IntArbitrary, MultiArbitrary, FixedArbitrary, CyclingArbitrary, RepeaterArbitrary
 
 
 class TestIntArbitrary(unittest.TestCase):
