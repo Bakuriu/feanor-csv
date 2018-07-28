@@ -36,7 +36,20 @@ class ParallelType(CompositeType):
         return sum(ty.num_outputs for ty in types)
 
 
-class SumType(CompositeType):
+class MergeType(CompositeType):
+
+    @classmethod
+    def compute_num_outputs(cls, types):
+        tys_num_outputs = tuple(ty.num_outputs for ty in types)
+        if len(set(tys_num_outputs)) != 1:
+            different_outputs = ', '.join(map(str, tys_num_outputs))
+            raise ValueError('Types must all have same number of outputs. Got {} instead.'.format(different_outputs))
+        return any(tys_num_outputs)
+
+
+class ChoiceType(CompositeType):
+    def __init__(self, types, config=None):
+        super().__init__(types, config)
 
     @classmethod
     def compute_num_outputs(cls, types):

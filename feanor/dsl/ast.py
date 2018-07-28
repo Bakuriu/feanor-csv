@@ -102,6 +102,13 @@ class LiteralNode(AstNode):
         self.literal = literal
         self.literal_type = type(literal)
 
+
+    def __str__(self):
+        return str(self.literal)
+
+    def __eq__(self, other):
+        return super().__eq__(other) and self.literal_type == other.literal_type and self.literal == other.literal
+
     def to_plain_object(self):
         if isinstance(self.literal, (list, set)):
             return self.literal_type(elem.to_plain_object() for elem in self.literal)
