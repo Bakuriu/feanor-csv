@@ -68,3 +68,19 @@ class TestGetType(unittest.TestCase):
         expected_type = MergeType([left_ty, right_ty], config=expected_config)
         self.assertEqual(expected_type, got)
         self.assertEqual(2, expected_type.num_outputs)
+
+    def test_raises_error_when_merging_incompatible_types(self):
+        with self.assertRaises(TypeError):
+            get_type(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
+
+    def test_raises_error_when_merging_incompatible_types_with_more_columns(self):
+        left_expr = ReferenceNode.of('a')
+        right_expr = ReferenceNode.of('b')
+        left_ty = ParallelType([SimpleType('int'), SimpleType('float')])
+        right_ty = ParallelType([SimpleType('int'), SimpleType('int')])
+        env = {
+            'a': left_ty,
+            'b': right_ty,
+        }
+        with self.assertRaises(TypeError):
+            get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env)
