@@ -11,6 +11,11 @@ class Type(metaclass=ABCMeta):
     def __str__(self):
         return self.name
 
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.name == other.name and self.num_outputs == other.num_outputs and self.config == other.config
+
 
 class SimpleType(Type):
     def __init__(self, name, config=None):
@@ -28,6 +33,9 @@ class CompositeType(Type):
     def compute_num_outputs(cls, types):
         raise NotImplementedError
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.types == other.types
+
 
 class ParallelType(CompositeType):
 
@@ -44,7 +52,7 @@ class MergeType(CompositeType):
         if len(set(tys_num_outputs)) != 1:
             different_outputs = ', '.join(map(str, tys_num_outputs))
             raise ValueError('Types must all have same number of outputs. Got {} instead.'.format(different_outputs))
-        return any(tys_num_outputs)
+        return tys_num_outputs[0]
 
 
 class ChoiceType(CompositeType):
@@ -57,7 +65,7 @@ class ChoiceType(CompositeType):
         if len(set(tys_num_outputs)) != 1:
             different_outputs = ', '.join(map(str, tys_num_outputs))
             raise ValueError('Types must all have same number of outputs. Got {} instead.'.format(different_outputs))
-        return any(tys_num_outputs)
+        return tys_num_outputs[0]
 
 
 def flatten_types(types, base_class):
