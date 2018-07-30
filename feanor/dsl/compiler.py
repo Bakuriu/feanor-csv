@@ -1,8 +1,22 @@
 from .ast import *
 from .types import *
 
+__all__ = ['default_compatibility', 'get_type']
+
 
 def default_compatibility(x, y):
+    """The default compatibility function for the type inferencer.
+
+    The default compatibility is an equivalence relation defined by the following rules:
+
+     - two `SimpleType`s are compatible if they are identical (same name and config).
+     - two `CompositeType`s are compatible if:
+       + they are of the same class
+       + they have the same configuration
+       + they have the same number of outputs
+       + all their types "children" are default-compatible
+
+    """
     if isinstance(x, SimpleType) and isinstance(y, SimpleType):
         return x == y
     elif isinstance(x, CompositeType) and isinstance(y, CompositeType):
@@ -12,7 +26,6 @@ def default_compatibility(x, y):
                 and x.config == y.config
                 and all(default_compatibility(a, b) for a, b in zip(x.types, y.types))
         )
-
 
 
 def get_type(tree: ExprNode, env=None, func_env=None, compatible=default_compatibility) -> Type:

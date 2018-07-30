@@ -1,6 +1,8 @@
 import unittest
 
+from feanor.dsl.ast import *
 from feanor.dsl.compiler import *
+from feanor.dsl.types import *
 
 
 class TestGetType(unittest.TestCase):
@@ -17,11 +19,13 @@ class TestGetType(unittest.TestCase):
         expected_type = SimpleType('int', {})
         arg_type = SimpleType('float', {})
         env = {'a': arg_type}
-        got = get_type(CallNode.of('func', [ReferenceNode.of('a')]), env=env, func_env={'func': ([arg_type], expected_type)})
+        got = get_type(CallNode.of('func', [ReferenceNode.of('a')]), env=env,
+                       func_env={'func': ([arg_type], expected_type)})
         self.assertEqual(expected_type, got)
 
     def test_can_get_type_from_merge(self):
-        got = get_type(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')), compatible=lambda x, y: True)
+        got = get_type(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')),
+                       compatible=lambda x, y: True)
         expected_config = {'left_config': {}, 'right_config': {}}
         expected_type = MergeType([SimpleType('int', {}), SimpleType('float', {})], config=expected_config)
         self.assertEqual(expected_type, got)
@@ -63,7 +67,7 @@ class TestGetType(unittest.TestCase):
             'a': left_ty,
             'b': right_ty,
         }
-        got = get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env, compatible=lambda x,y: True)
+        got = get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env, compatible=lambda x, y: True)
         expected_config = {'left_config': {}, 'right_config': {}}
         expected_type = MergeType([left_ty, right_ty], config=expected_config)
         self.assertEqual(expected_type, got)
@@ -84,3 +88,30 @@ class TestGetType(unittest.TestCase):
         }
         with self.assertRaises(TypeError):
             get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env)
+
+
+class TestDefaultCompatibility(unittest.TestCase):
+    def test_identical_simple_types_are_compatible(self):
+        self.assertTrue(default_compatibility(SimpleType('int'), SimpleType('int')))
+
+    def test_composite_types_of_same_class_with_one_identical_type_are_compatible(self):
+        for cls in (ChoiceType, MergeType, ParallelType):
+            self.assertTrue(default_compatibility(cls([SimpleType('int')]), cls([SimpleType('int')])))
+
+    def test_two_non_identical_simple_types_are_not_compatible(self):
+        self.assertFalse(default_compatibility(SimpleType('int'), SimpleType('float')))
+
+    def test_composite_types_of_same_class_with_one_different_type_are_not_compatible(self):
+        for cls in (ChoiceType, MergeType, ParallelType):
+            self.assertFalse(default_compatibility(cls([SimpleType('int')]), cls([SimpleType('float')])))
+
+    def test_composite_types_of_different_class_with_one_identical_type_are_not_compatible(self):
+        arg = SimpleType('int')
+        for first in [ChoiceType, MergeType, ParallelType]:
+            for second in [sec for sec in (ChoiceType, MergeType, ParallelType) if sec != first]:
+                self.assertFalse(default_compatibility(first([arg]), second([arg])))
+
+    def test_composite_types_with_multiple_incompatible_types_are_not_compatible(self):
+        for cls in (ChoiceType, MergeType, ParallelType):
+            self.assertFalse(default_compatibility(cls([SimpleType('int'), SimpleType('string')]),
+                                                   cls([SimpleType('int'), SimpleType('not-string')])))
