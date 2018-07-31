@@ -170,15 +170,6 @@ class TestSchema(unittest.TestCase):
             schema.add_transformer('my_transformer', inputs=['B'], outputs=['A'], transformer=ret_none)
         self.assertEqual("Inputs: 'B' are not defined in the schema.", str(ctx.exception))
 
-    def test_raises_an_error_if_outputs_do_not_exist(self):
-        schema = Schema()
-        schema.define_column('A', type='int')
-
-        ret_none = FunctionalTransformer(lambda x: None)
-        with self.assertRaises(SchemaError) as ctx:
-            schema.add_transformer('my_transformer', inputs=['A'], outputs=['B'], transformer=ret_none)
-        self.assertEqual("Outputs: 'B' are not defined in the schema.", str(ctx.exception))
-
     def test_raises_an_error_if_num_inputs_do_not_match_arity(self):
         schema = Schema()
         schema.define_column('A', type='int')
@@ -229,20 +220,3 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
         self.assertEqual("Transformer 'my_transformer' is already defined.", str(ctx.exception))
-
-
-@unittest.skip
-class TestSchemaParsing(unittest.TestCase):
-
-    def test_can_parse_header_from_json_schema(self):
-        schema = Schema.parse('{"version": "1.0", "header": ["A", "B", "C"]}')
-        self.assertEqual(schema.columns, ('A', 'B', 'C'))
-
-    def test_json_schema_must_have_version(self):
-        with self.assertRaises(MissingVersionError):
-            Schema.parse('{"header": ["A", "B", "C"]}')
-
-    def test_json_schema_must_have_valid_version_number(self):
-        for invalid_number in ('1', 'string', '1.0.2', ''):
-            with self.assertRaises(InvalidVersionNumberError):
-                Schema.parse('{"version": "%s", "header": ["A", "B", "C"]}' % invalid_number)

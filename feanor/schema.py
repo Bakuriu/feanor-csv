@@ -3,6 +3,7 @@ import json
 import inspect
 from abc import ABCMeta, abstractmethod
 from collections import Counter
+from itertools import chain
 from types import SimpleNamespace
 
 from .util import to_string_list
@@ -103,13 +104,14 @@ class Schema:
         if len(outputs) != transformer.num_outputs:
             msg = 'Got {} outputs: {} but transformer\'s number of outputs is {.num_outputs}.'
             raise SchemaError(msg.format(len(outputs), to_string_list(outputs), transformer))
-        defined_names = self._arbitraries.keys() | set(self._columns)
+        defined_names = (
+                self._arbitraries.keys()
+                | set(self._columns)
+                | set(chain.from_iterable(trans['outputs'] for trans in self._transformers))
+        )
         undefined_inputs = set(inputs) - defined_names
-        undefined_outputs = set(outputs) - defined_names
         if undefined_inputs:
             raise SchemaError("Inputs: {} are not defined in the schema.".format(to_string_list(undefined_inputs)))
-        if undefined_outputs:
-            raise SchemaError("Outputs: {} are not defined in the schema.".format(to_string_list(undefined_outputs)))
 
         unique_outputs = set(outputs)
         if len(unique_outputs) != len(outputs):
