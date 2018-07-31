@@ -1,3 +1,4 @@
+import random
 import re
 import json
 import inspect
@@ -32,6 +33,19 @@ class Schema:
         self._columns = []
         self._arbitraries = {}
         self._transformers = []
+
+    def __eq__(self, other):
+        return isinstance(other, Schema) and self.__dict__ == other.__dict__
+
+    def __str__(self):
+        return 'Schema(\n\tcolumns={},\n\tarbitraries={{{}}},\n\ttransformers={}\n\tshow_header={}\n)'.format(
+            self._columns,
+            ', '.join(': '.join([name, str(arb)]) for name, arb in self._arbitraries.items()),
+            ', '.join(map(str, self._transformers)),
+            self._show_header,
+        )
+
+    __repr__ = __str__
 
     @property
     def columns(self):
@@ -188,6 +202,70 @@ class ProjectionTransformer(Transformer):
 
     def __eq__(self, other):
         return isinstance(other, ProjectionTransformer) and self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(tuple(sorted(self.__dict__.items())))
+
+
+class ChoiceTransformer(Transformer):
+    def __init__(self, arity, left_config, right_config):
+        super().__init__(arity, arity // 2)
+        self._left_config = left_config
+        self._right_config = right_config
+        if not isinstance(self._left_config, (int, float)) and 0 <= self._left_config <= 1:
+            raise TypeError('Invalid configuration for choice operator: {!r}'.format(self._left_config))
+        if not isinstance(self._right_config, (int, float)) and 0 <= self._right_config <= 1:
+            raise TypeError('Invalid configuration for choice operator: {!r}'.format(self._right_config))
+        if self._left_config + self._right_config > 1:
+            raise ValueError(
+                'Invalid configuration for choice operator: {!r} {!r}'.format(self._left_config, self._right_config))
+        self._right_config += self._left_config
+
+    def __call__(self, inputs):
+        left_inputs = inputs[:self.arity]
+        right_inputs = inputs[self.arity:]
+        value = random.random()
+        if value <= self._left_config:
+            return left_inputs
+        elif value <= self._right_config:
+            return right_inputs
+        else:
+            return (None,) * self.arity
+
+    def __eq__(self, other):
+        return isinstance(other, ChoiceTransformer) and self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(tuple(sorted(self.__dict__.items())))
+
+
+class MergeTransformer(Transformer):
+    def __init__(self, arity, left_config, right_config):
+        super().__init__(arity, arity)
+        self._left_config = left_config
+        self._right_config = right_config
+
+    def __call__(self, inputs):
+        left_inputs = inputs[:self.arity]
+        right_inputs = inputs[self.arity:]
+        return tuple(x + y for x, y in zip(left_inputs, right_inputs))
+
+    def __eq__(self, other):
+        return isinstance(other, MergeTransformer) and self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(tuple(sorted(self.__dict__.items())))
+
+
+class IdentityTransformer(Transformer):
+    def __init__(self, arity):
+        super().__init__(arity, arity)
+
+    def __call__(self, inputs):
+        return tuple(inputs)
+
+    def __eq__(self, other):
+        return isinstance(other, IdentityTransformer) and self.__dict__ == other.__dict__
 
     def __hash__(self):
         return hash(tuple(sorted(self.__dict__.items())))

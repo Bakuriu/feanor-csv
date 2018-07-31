@@ -1,8 +1,13 @@
 import unittest
+from types import SimpleNamespace
 
 from feanor.dsl.ast import *
 from feanor.dsl.compiler import *
 from feanor.dsl.types import *
+from feanor.schema import (
+    Schema, FunctionalTransformer, ProjectionTransformer, ChoiceTransformer, MergeTransformer,
+    IdentityTransformer,
+)
 
 
 class TestGetType(unittest.TestCase):
@@ -115,3 +120,139 @@ class TestDefaultCompatibility(unittest.TestCase):
         for cls in (ChoiceType, MergeType, ParallelType):
             self.assertFalse(default_compatibility(cls([SimpleType('int'), SimpleType('string')]),
                                                    cls([SimpleType('int'), SimpleType('not-string')])))
+
+
+class TestCompilation(unittest.TestCase):
+    def test_can_compile_a_type_name_node_with_no_config(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(TypeNameNode.of('int'))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_an_assignment_of_a_type_name(self):
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(AssignNode.of(TypeNameNode.of('int'), 'a'))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_concatenation_of_two_type_names(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_column('column#1')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['column#1'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_choice_of_two_type_names(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['transformer#0'],
+                               transformer=ChoiceTransformer(2, 0.5, 0.5))
+        schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int')))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_merge_of_two_type_names(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_column('column#1')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'],
+                               outputs=['transformer#0#0', 'transformer#0#1'],
+                               transformer=MergeTransformer(2, None, None))
+        schema.add_transformer('transformer#1', inputs=['transformer#0#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#2', inputs=['transformer#0#1'], outputs=['column#1'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int')))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_reference(self):
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_column('column#1')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['a'], outputs=['transformer#1'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#2', inputs=['transformer#1'], outputs=['column#1'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(
+            BinaryOpNode.of(
+                '.',
+                AssignNode.of(TypeNameNode.of('int'), 'a'),
+                ReferenceNode.of('a')
+            )
+        )
+        self.assertEqual(schema, got)
+
+    def test_can_compile__with_two_references_same_values(self):
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_column('column#1')
+        schema.add_column('column#2')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['a'], outputs=['transformer#1'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#2', inputs=['a'], outputs=['transformer#2'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#3', inputs=['transformer#1'], outputs=['column#1'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#4', inputs=['transformer#2'], outputs=['column#2'], transformer=IdentityTransformer(1))
+        got = compile_expression(
+            BinaryOpNode.of(
+                '.',
+                AssignNode.of(TypeNameNode.of('int'), 'a'),
+                BinaryOpNode.of(
+                    '.',
+                    ReferenceNode.of('a'),
+                    ReferenceNode.of('a')
+                )
+            ))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_an_assignment_of_two_type_names(self):
+        schema = Schema()
+        schema.add_column('a#0')
+        schema.add_column('a#1')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['a#0', 'a#1'],
+                               transformer=IdentityTransformer(2))
+        got = compile_expression(
+            AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a'))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_projection(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['transformer#0'], transformer=ProjectionTransformer(1, 0))
+        schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
+        got = compile_expression(ProjectionNode.of(TypeNameNode.of('int'), 0))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_projection_of_concatenation(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['transformer#0'], transformer=ProjectionTransformer(2, 1))
+        schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
+        got = compile_expression(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 1))
+        self.assertEqual(schema, got)

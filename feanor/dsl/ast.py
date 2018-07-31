@@ -27,6 +27,14 @@ class AstNode(metaclass=ABCMeta):
         # noinspection PyArgumentList
         return cls(*args, **kwargs)
 
+    def visit(self, func):
+        """Visit this node."""
+        if self.is_leaf():
+            return func(self)
+        else:
+            children_results = (child.visit(func) if child is not None else None for child in self._children)
+            return func(self, *children_results)
+
 
 class ExprNode(AstNode):
     """Base-class for expression nodes."""
