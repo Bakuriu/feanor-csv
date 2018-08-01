@@ -256,3 +256,22 @@ class TestCompilation(unittest.TestCase):
         schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
         got = compile_expression(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 1))
         self.assertEqual(schema, got)
+
+    def test_can_compile_double_assignment(self):
+        schema = Schema()
+        schema.add_column('b')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['a'], outputs=['b'], transformer=IdentityTransformer(1))
+        got = compile_expression(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_triple_assignment(self):
+        schema = Schema()
+        schema.add_column('c')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['a'], outputs=['b'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#2', inputs=['b'], outputs=['c'], transformer=IdentityTransformer(1))
+        got = compile_expression(AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c'))
+        self.assertEqual(schema, got)

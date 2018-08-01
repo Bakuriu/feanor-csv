@@ -145,7 +145,7 @@ class Schema:
         data = json.loads(text)
         if not 'version' in data:
             raise MissingVersionError()
-        elif not isinstance(data['version'], str) or not re.match('^\d+\.\d+$', data['version']):
+        elif not isinstance(data['version'], str) or not re.match(r'^\d+\.\d+$', data['version']):
             raise InvalidVersionNumberError(data['version'])
 
         schema = cls()

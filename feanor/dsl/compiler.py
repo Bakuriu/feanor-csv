@@ -161,11 +161,17 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
             result, name = children_values
             env[name] = result
             if len(result) == 1:
-                schema.add_transformer(new_transformer_name(), inputs=[result[0]], outputs=[name], transformer=IdentityTransformer(1))
+                if isinstance(result[0], tuple):
+                    from_ = result[0][1]
+                else:
+                    from_ = result[0]
+                schema.add_transformer(new_transformer_name(), inputs=[from_], outputs=[name],
+                                       transformer=IdentityTransformer(1))
                 return ((result[0], name),)
             else:
                 names = ['{}#{}'.format(name, i) for i in range(len(result))]
-                schema.add_transformer(new_transformer_name(), inputs=list(result), outputs=names, transformer=IdentityTransformer(len(result)))
+                schema.add_transformer(new_transformer_name(), inputs=list(result), outputs=names,
+                                       transformer=IdentityTransformer(len(result)))
                 return names
         elif isinstance(cur_node, BinaryOpNode):
             operator, left, left_config, right, right_config = children_values
@@ -197,7 +203,8 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
         elif isinstance(cur_node, ProjectionNode):
             result, *indices = children_values
             transformer_name = new_transformer_name()
-            schema.add_transformer(transformer_name, inputs=list(result), outputs=[transformer_name], transformer=ProjectionTransformer(len(result), *indices))
+            schema.add_transformer(transformer_name, inputs=list(result), outputs=[transformer_name],
+                                   transformer=ProjectionTransformer(len(result), *indices))
             return (transformer_name,)
         else:
             raise TypeError('Invalid node ' + str(cur_node))
@@ -215,7 +222,3 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
         else:
             schema.add_column(name)
     return schema
-
-
-def _compile_type_name(expr: TypeNameNode, env, func_env, compatible):
-    return get_type(expr, env, func_env, compatible)
