@@ -171,47 +171,46 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
             return cur_node
         elif isinstance(cur_node, AssignNode):
             result, name = children_values
-            env[name] = result.info['out_names']
-            if len(result.info['out_names']) == 1:
-                schema.add_transformer(new_transformer_name(), inputs=result.info['out_names'], outputs=[name],
+            res_outputs = result.info['out_names']
+            env[name] = res_outputs
+            if len(res_outputs) == 1:
+                schema.add_transformer(new_transformer_name(), inputs=res_outputs, outputs=[name],
                                        transformer=IdentityTransformer(1))
-                cur_node.info['in_names'] = result.info['out_names']
+                cur_node.info['in_names'] = res_outputs
                 cur_node.info['out_names'] = [name]
             else:
-                names = ['{}#{}'.format(name, i) for i in range(len(result.info['out_names']))]
-                schema.add_transformer(new_transformer_name(), inputs=result.info['out_names'], outputs=names,
-                                       transformer=IdentityTransformer(len(result.info['out_names'])))
-                cur_node.info['in_names'] = result.info['out_names']
+                names = ['{}#{}'.format(name, i) for i in range(len(res_outputs))]
+                schema.add_transformer(new_transformer_name(), inputs=res_outputs, outputs=names,
+                                       transformer=IdentityTransformer(len(res_outputs)))
+                cur_node.info['in_names'] = res_outputs
                 cur_node.info['out_names'] = names
             cur_node.info['assigned_name'] = name
             return cur_node
         elif isinstance(cur_node, BinaryOpNode):
             operator, left, left_config, right, right_config = children_values
-            new_names = left.info['out_names'] + right.info['out_names']
+            all_in_names = left.info['out_names'] + right.info['out_names']
             if operator == '.':
                 cur_node.info['assigned_name'] = None
-                cur_node.info['in_names'] = new_names
-                cur_node.info['out_names'] = new_names
+                cur_node.info['in_names'] = all_in_names
+                cur_node.info['out_names'] = all_in_names
                 return cur_node
             elif operator == '|':
                 transformer_name = new_transformer_name()
                 left_config = left_config.literal if left_config is not None else 0.5
                 right_config = right_config.literal if right_config is not None else 0.5
-                transformer = ChoiceTransformer(len(new_names), left_config, right_config)
-                schema.add_transformer(transformer_name, inputs=new_names, outputs=[transformer_name],
-                                       transformer=transformer)
+                transformer = ChoiceTransformer(len(all_in_names), left_config, right_config)
+                schema.add_transformer(transformer_name, inputs=all_in_names, outputs=[transformer_name], transformer=transformer)
                 cur_node.info['assigned_name'] = None
-                cur_node.info['in_names'] = new_names
+                cur_node.info['in_names'] = all_in_names
                 cur_node.info['out_names'] = [transformer_name]
                 return cur_node
             elif operator == '+':
                 transformer_name = new_transformer_name()
-                transformer = MergeTransformer(len(new_names), left_config, right_config)
+                transformer = MergeTransformer(len(all_in_names), left_config, right_config)
                 outputs = ['{}#{}'.format(transformer_name, i) for i in range(transformer.num_outputs)]
-                schema.add_transformer(transformer_name, inputs=new_names, outputs=outputs,
-                                       transformer=transformer)
+                schema.add_transformer(transformer_name, inputs=all_in_names, outputs=outputs, transformer=transformer)
                 cur_node.info['assigned_name'] = None
-                cur_node.info['in_names'] = new_names
+                cur_node.info['in_names'] = all_in_names
                 cur_node.info['out_names'] = outputs
                 return cur_node
             else:
