@@ -303,7 +303,7 @@ class TestCompilation(unittest.TestCase):
         )
         self.assertEqual(schema, got)
 
-    def test_can_compile__with_two_references_same_values(self):
+    def test_can_compile_with_two_references_same_values(self):
         schema = Schema()
         schema.add_column('a')
         schema.add_column('column#1')
@@ -347,11 +347,12 @@ class TestCompilation(unittest.TestCase):
         schema = Schema()
         schema.add_column('column#0')
         schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['transformer#0'],
-                               transformer=ProjectionTransformer(1, 0))
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['transformer#0'],
+                               transformer=ProjectionTransformer(2, 0))
         schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(ProjectionNode.of(TypeNameNode.of('int'), 0))
+        got = compile_expression(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0))
         self.assertEqual(schema, got)
 
     def test_can_compile_projection_of_concatenation(self):

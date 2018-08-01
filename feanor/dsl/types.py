@@ -69,4 +69,4 @@ class ChoiceType(CompositeType):
 
 
 def flatten_types(types, base_class):
-    return chain.from_iterable([ty] if not isinstance(ty, base_class) else ty._types for ty in types)
+    return chain.from_iterable([ty] if not isinstance(ty, base_class) else ty.types for ty in types)
