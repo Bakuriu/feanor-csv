@@ -236,7 +236,13 @@ class TestCompilation(unittest.TestCase):
     def test_compililing_a_type_name_node_with_no_config_sets_info_value(self):
         tree = TypeNameNode.of('int')
         compile_expression(tree)
-        self.assertEqual({'type': SimpleType('int', {}), 'assigned_name': None, 'names': ['arbitrary#0']}, tree.info)
+        expected_info = {
+            'type': SimpleType('int', {}),
+            'assigned_name': None,
+            'in_names': ['arbitrary#0'],
+            'out_names': ['arbitrary#0'],
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_an_assignment_of_a_type_name(self):
         schema = Schema()
@@ -250,7 +256,13 @@ class TestCompilation(unittest.TestCase):
     def test_compiling_an_assignment_of_a_type_name_sets_info_value(self):
         tree = AssignNode.of(TypeNameNode.of('int'), 'a')
         compile_expression(tree)
-        self.assertEqual({'type': SimpleType('int', {}), 'assigned_name': 'a', 'names': ['arbitrary#0']}, tree.info)
+        expected_info = {
+            'type': SimpleType('int', {}),
+            'assigned_name': 'a',
+            'in_names': ['arbitrary#0'],
+            'out_names': ['a'],
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_concatenation_of_two_type_names(self):
         schema = Schema()
@@ -271,7 +283,8 @@ class TestCompilation(unittest.TestCase):
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
                                  config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
-            'names': ['arbitrary#0', 'arbitrary#1']
+            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'out_names': ['arbitrary#0', 'arbitrary#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -293,7 +306,8 @@ class TestCompilation(unittest.TestCase):
         expected_info = {
             'type': ChoiceType([SimpleType('int', {}), SimpleType('int', {})],
                                config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
-            'names': ['transformer#0']
+            'out_names': ['transformer#0'],
+            'in_names': ['arbitrary#0', 'arbitrary#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -320,7 +334,8 @@ class TestCompilation(unittest.TestCase):
             'type': MergeType([SimpleType('int', {}), SimpleType('int', {})],
                               config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'names': ['transformer#0#0', 'transformer#0#1']
+            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'out_names': ['transformer#0#0', 'transformer#0#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -351,7 +366,8 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'names': ['a', 'transformer#1'],
+            'in_names': ['a', 'transformer#1'],
+            'out_names': ['a', 'transformer#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -398,7 +414,8 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'names': ['a', 'transformer#1', 'transformer#2']
+            'in_names': ['a', 'transformer#1', 'transformer#2'],
+            'out_names': ['a', 'transformer#1', 'transformer#2'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -421,7 +438,8 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': 'a',
-            'names': ['arbitrary#0', 'arbitrary#1'],
+            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'out_names': ['a#0', 'a#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -442,7 +460,8 @@ class TestCompilation(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': None,
-            'names': ['arbitrary#0'],
+            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'out_names': ['arbitrary#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -462,7 +481,8 @@ class TestCompilation(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': 'b',
-            'names': ['a'],
+            'in_names': ['a'],
+            'out_names': ['b'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -483,7 +503,8 @@ class TestCompilation(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': 'c',
-            'names': ['b'],
+            'in_names': ['b'],
+            'out_names': ['c'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -508,7 +529,8 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'names': ['a', 'arbitrary#1'],
+            'in_names': ['a', 'arbitrary#1'],
+            'out_names': ['a', 'arbitrary#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -536,6 +558,7 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('float', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'names': ['a#0','a#1', 'arbitrary#2'],
+            'in_names': ['a#0', 'a#1', 'arbitrary#2'],
+            'out_names': ['a#0', 'a#1', 'arbitrary#2'],
         }
         self.assertEqual(expected_info, tree.info)
