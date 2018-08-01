@@ -54,11 +54,15 @@ def get_type(tree: ExprNode, env=None, func_env=None, compatible=default_compati
 
 
 def _get_type_from_definition(type_definition: TypeNameNode, env, func_env, compatible):
-    return SimpleType(type_definition.children[0].name, type_definition.children[1].config)
+    ty = SimpleType(type_definition.children[0].name, type_definition.children[1].config)
+    type_definition.info['type'] = ty
+    return ty
 
 
 def _get_type_from_reference(reference: ReferenceNode, env, func_env, compatible):
-    return env[reference.children[0].name]
+    ty = env[reference.children[0].name]
+    reference.info['type'] = ty
+    return ty
 
 
 def _get_type_from_assignment(assignment: AssignNode, env, func_env, compatible):
@@ -67,6 +71,7 @@ def _get_type_from_assignment(assignment: AssignNode, env, func_env, compatible)
     if name in env:
         raise TypeError('Already defined name {!r}'.format(name))
     env[name] = ty
+    assignment.info['type'] = ty
     return ty
 
 
@@ -78,8 +83,11 @@ def _get_type_from_projection(projection: ProjectionNode, env, func_env, compati
         raise TypeError('Indices out of range for projection')
     indices = projection.children[1:]
     if len(indices) > 1:
-        return ParallelType(ty.types[index.literal] for index in indices)
-    return ty.types[indices[0].literal]
+        ret_type = ParallelType(ty.types[index.literal] for index in indices)
+    else:
+        ret_type = ty.types[indices[0].literal]
+    projection.info['type'] = ret_type
+    return ret_type
 
 
 def _get_type_from_call(call: CallNode, env, func_env, compatible):
@@ -93,15 +101,19 @@ def _get_type_from_call(call: CallNode, env, func_env, compatible):
         if not compatible(arg_type, expected_arg_type):
             raise TypeError(
                 f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
+    call.info['type'] = ret_type
     return ret_type
 
 
 def _get_type_from_bin_op(bin_op: BinaryOpNode, env, func_env, compatible):
     if bin_op.children[0].name == '+':
-        return _get_type_from_merge(bin_op, env, func_env, compatible)
+        ty = _get_type_from_merge(bin_op, env, func_env, compatible)
     elif bin_op.children[0].name == '|':
-        return _get_type_from_choice(bin_op, env, func_env, compatible)
-    return _get_type_from_parallel_composition(bin_op, env, func_env, compatible)
+        ty = _get_type_from_choice(bin_op, env, func_env, compatible)
+    else:
+        ty = _get_type_from_parallel_composition(bin_op, env, func_env, compatible)
+    bin_op.info['type'] = ty
+    return ty
 
 
 def _get_type_from_merge(merge: BinaryOpNode, env, func_env, compatible):

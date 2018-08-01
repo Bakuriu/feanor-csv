@@ -6,6 +6,7 @@ class AstNode(metaclass=ABCMeta):
 
     def __init__(self, *children):
         self._children = children
+        self.info = {}
 
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__[:-4], ', '.join(map(str, self._children)))
