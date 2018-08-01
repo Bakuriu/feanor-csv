@@ -395,7 +395,8 @@ class TestCompilation(unittest.TestCase):
         )
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})], config={'left_config': {}, 'right_config': {}}),
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})],
+                                 config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
             'names': ['a', 'transformer#1', 'transformer#2']
         }
@@ -417,7 +418,8 @@ class TestCompilation(unittest.TestCase):
         tree = AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a')
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})], config={'left_config': {}, 'right_config': {}}),
+            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})],
+                                 config={'left_config': {}, 'right_config': {}}),
             'assigned_name': 'a',
             'names': ['arbitrary#0', 'arbitrary#1'],
         }
@@ -434,7 +436,7 @@ class TestCompilation(unittest.TestCase):
             ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0))
         self.assertEqual(schema, got)
 
-    def test_compiling_projection__of_concatenation_sets_info_values(self):
+    def test_compiling_projection_of_concatenation_sets_info_values(self):
         tree = ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0)
         compile_expression(tree)
         expected_info = {
@@ -482,5 +484,58 @@ class TestCompilation(unittest.TestCase):
             'type': SimpleType('int', {}),
             'assigned_name': 'c',
             'names': ['b'],
+        }
+        self.assertEqual(expected_info, tree.info)
+
+    def test_can_compile_concatenation_with_assignment_inside(self):
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_column('column#1')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['column#1'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(
+            BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float')))
+        self.assertEqual(schema, got)
+
+    def test_compiling_concatenation_with_assignment_inside_sets_info_value(self):
+        tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float'))
+        compile_expression(tree)
+        expected_info = {
+            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})],
+                                 config={'left_config': {}, 'right_config': {}}),
+            'assigned_name': None,
+            'names': ['a', 'arbitrary#1'],
+        }
+        self.assertEqual(expected_info, tree.info)
+
+    def test_can_compile_concatenation_with_assignment_inside_on_concat(self):
+        schema = Schema()
+        schema.add_column('a#0')
+        schema.add_column('a#1')
+        schema.add_column('column#2')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='int')
+        schema.add_arbitrary('arbitrary#2', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['a#0', 'a#1'],
+                               transformer=IdentityTransformer(2))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#2'], outputs=['column#2'],
+                               transformer=IdentityTransformer(1))
+        got = compile_expression(BinaryOpNode.of('.', AssignNode.of(
+            BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float')))
+        self.assertEqual(schema, got)
+
+    def test_compiling_concatenation_with_assignment_inside_on_concat_sets_info_value(self):
+        tree = BinaryOpNode.of('.', AssignNode.of(
+            BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float'))
+        compile_expression(tree)
+        expected_info = {
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('float', {})],
+                                 config={'left_config': {}, 'right_config': {}}),
+            'assigned_name': None,
+            'names': ['a#0','a#1', 'arbitrary#2'],
         }
         self.assertEqual(expected_info, tree.info)

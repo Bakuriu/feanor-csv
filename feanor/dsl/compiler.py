@@ -187,7 +187,7 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
                                        transformer=IdentityTransformer(len(result)))
                 cur_node.info['assigned_name'] = name
                 cur_node.info['names'] = list(result)
-                return names
+                return tuple(names)
         elif isinstance(cur_node, BinaryOpNode):
             operator, left, left_config, right, right_config = children_values
             if operator == '.':
