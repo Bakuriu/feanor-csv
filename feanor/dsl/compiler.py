@@ -1,11 +1,6 @@
-import re
-
-from ..schema import (
-    Schema, FunctionalTransformer, ProjectionTransformer, ChoiceTransformer, MergeTransformer,
-    IdentityTransformer,
-)
 from .ast import *
 from .types import *
+from ..schema import *
 
 __all__ = ['default_compatibility', 'get_type', 'compile_expression']
 
@@ -140,8 +135,10 @@ def _get_type_from_choice(choice: BinaryOpNode, env, func_env, compatible):
 
 
 def compile_expression(expr: ExprNode, func_env=None, compatible=default_compatibility) -> Schema:
-    func_env = {} if func_env is None else {}
+    func_env = func_env or {}
     env = {}
+
+    get_type(expr, env, func_env, compatible)
 
     schema = Schema()
 
@@ -168,6 +165,8 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
             name = 'arbitrary#{}'.format(cur_arbitrary_id)
             cur_arbitrary_id += 1
             schema.add_arbitrary(name, type=ty, config=config)
+            cur_node.info['assigned_name'] = None
+            cur_node.info['names'] = [name]
             return (name,)
         elif isinstance(cur_node, AssignNode):
             result, name = children_values
@@ -179,15 +178,21 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
                     from_ = result[0]
                 schema.add_transformer(new_transformer_name(), inputs=[from_], outputs=[name],
                                        transformer=IdentityTransformer(1))
+                cur_node.info['assigned_name'] = name
+                cur_node.info['names'] = [from_]
                 return ((result[0], name),)
             else:
                 names = ['{}#{}'.format(name, i) for i in range(len(result))]
                 schema.add_transformer(new_transformer_name(), inputs=list(result), outputs=names,
                                        transformer=IdentityTransformer(len(result)))
+                cur_node.info['assigned_name'] = name
+                cur_node.info['names'] = list(result)
                 return names
         elif isinstance(cur_node, BinaryOpNode):
             operator, left, left_config, right, right_config = children_values
             if operator == '.':
+                cur_node.info['assigned_name'] = None
+                cur_node.info['names'] = [(n if not isinstance(n, tuple) else n[1]) for n in (left+right)]
                 return left + right
             elif operator == '|':
                 transformer_name = new_transformer_name()
@@ -196,6 +201,8 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
                 transformer = ChoiceTransformer(len(left) + len(right), left_config, right_config)
                 schema.add_transformer(transformer_name, inputs=list(left + right), outputs=[transformer_name],
                                        transformer=transformer)
+                cur_node.info['assigned_name'] = None
+                cur_node.info['names'] = [transformer_name]
                 return (transformer_name,)
             elif operator == '+':
                 transformer_name = new_transformer_name()
@@ -203,6 +210,8 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
                 outputs = ['{}#{}'.format(transformer_name, i) for i in range(transformer.num_outputs)]
                 schema.add_transformer(transformer_name, inputs=list(left + right), outputs=outputs,
                                        transformer=transformer)
+                cur_node.info['assigned_name'] = None
+                cur_node.info['names'] = outputs
                 return tuple(outputs)
             else:
                 raise TypeError('Invalid operator ' + operator)
@@ -211,13 +220,15 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
             transformer_name = new_transformer_name()
             transformer = IdentityTransformer(len(env[name]))
             schema.add_transformer(transformer_name, inputs=[name], outputs=[transformer_name], transformer=transformer)
+            cur_node.info['assigned_name'] = None
+            cur_node.info['names'] = [transformer_name]
             return (transformer_name,)
         elif isinstance(cur_node, ProjectionNode):
             result, *indices = children_values
-            transformer_name = new_transformer_name()
-            schema.add_transformer(transformer_name, inputs=list(result), outputs=[transformer_name],
-                                   transformer=ProjectionTransformer(len(result), *indices))
-            return (transformer_name,)
+            cur_node.info['assigned_name'] = None
+            output_names = [n for i, n in enumerate(result) if i in indices]
+            cur_node.info['names'] = output_names
+            return tuple(output_names)
         else:
             raise TypeError('Invalid node ' + str(cur_node))
 

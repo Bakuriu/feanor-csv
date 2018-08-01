@@ -233,6 +233,11 @@ class TestCompilation(unittest.TestCase):
         got = compile_expression(TypeNameNode.of('int'))
         self.assertEqual(schema, got)
 
+    def test_compililing_a_type_name_node_with_no_config_sets_info_value(self):
+        tree = TypeNameNode.of('int')
+        compile_expression(tree)
+        self.assertEqual({'type': SimpleType('int', {}), 'assigned_name': None, 'names': ['arbitrary#0']}, tree.info)
+
     def test_can_compile_an_assignment_of_a_type_name(self):
         schema = Schema()
         schema.add_column('a')
@@ -241,6 +246,11 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         got = compile_expression(AssignNode.of(TypeNameNode.of('int'), 'a'))
         self.assertEqual(schema, got)
+
+    def test_compiling_an_assignment_of_a_type_name_sets_info_value(self):
+        tree = AssignNode.of(TypeNameNode.of('int'), 'a')
+        compile_expression(tree)
+        self.assertEqual({'type': SimpleType('int', {}), 'assigned_name': 'a', 'names': ['arbitrary#0']}, tree.info)
 
     def test_can_compile_concatenation_of_two_type_names(self):
         schema = Schema()
@@ -255,6 +265,16 @@ class TestCompilation(unittest.TestCase):
         got = compile_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
 
+    def test_compiling_concatenation_of_two_type_names_sets_info_value(self):
+        tree = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))
+        compile_expression(tree)
+        expected_info = {
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
+                                 config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
+            'names': ['arbitrary#0', 'arbitrary#1']
+        }
+        self.assertEqual(expected_info, tree.info)
+
     def test_can_compile_choice_of_two_type_names(self):
         schema = Schema()
         schema.add_column('column#0')
@@ -266,6 +286,16 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         got = compile_expression(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
+
+    def test_compiling_choice_of_two_type_names_sets_info_value(self):
+        tree = BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int'))
+        compile_expression(tree)
+        expected_info = {
+            'type': ChoiceType([SimpleType('int', {}), SimpleType('int', {})],
+                               config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
+            'names': ['transformer#0']
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_merge_of_two_type_names(self):
         schema = Schema()
@@ -282,6 +312,17 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         got = compile_expression(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
+
+    def test_compiling_merge_of_two_type_names_sets_info_value(self):
+        tree = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int'))
+        compile_expression(tree)
+        expected_info = {
+            'type': MergeType([SimpleType('int', {}), SimpleType('int', {})],
+                              config={'left_config': {}, 'right_config': {}}),
+            'assigned_name': None,
+            'names': ['transformer#0#0', 'transformer#0#1']
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_reference(self):
         schema = Schema()
@@ -302,6 +343,17 @@ class TestCompilation(unittest.TestCase):
             )
         )
         self.assertEqual(schema, got)
+
+    def test_compiling_reference_sets_info_value(self):
+        tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), ReferenceNode.of('a'))
+        compile_expression(tree)
+        expected_info = {
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
+                                 config={'left_config': {}, 'right_config': {}}),
+            'assigned_name': None,
+            'names': ['a', 'transformer#1'],
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_with_two_references_same_values(self):
         schema = Schema()
@@ -331,6 +383,24 @@ class TestCompilation(unittest.TestCase):
             ))
         self.assertEqual(schema, got)
 
+    def test_compiling_with_two_references_same_values_sets_info_value(self):
+        tree = BinaryOpNode.of(
+            '.',
+            AssignNode.of(TypeNameNode.of('int'), 'a'),
+            BinaryOpNode.of(
+                '.',
+                ReferenceNode.of('a'),
+                ReferenceNode.of('a'),
+            )
+        )
+        compile_expression(tree)
+        expected_info = {
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})], config={'left_config': {}, 'right_config': {}}),
+            'assigned_name': None,
+            'names': ['a', 'transformer#1', 'transformer#2']
+        }
+        self.assertEqual(expected_info, tree.info)
+
     def test_can_compile_an_assignment_of_two_type_names(self):
         schema = Schema()
         schema.add_column('a#0')
@@ -343,30 +413,36 @@ class TestCompilation(unittest.TestCase):
             AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a'))
         self.assertEqual(schema, got)
 
-    def test_can_compile_projection(self):
-        schema = Schema()
-        schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['transformer#0'],
-                               transformer=ProjectionTransformer(2, 0))
-        schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'],
-                               transformer=IdentityTransformer(1))
-        got = compile_expression(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0))
-        self.assertEqual(schema, got)
+    def test_compiling_an_assignment_of_two_type_names_sets_info_value(self):
+        tree = AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a')
+        compile_expression(tree)
+        expected_info = {
+            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})], config={'left_config': {}, 'right_config': {}}),
+            'assigned_name': 'a',
+            'names': ['arbitrary#0', 'arbitrary#1'],
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_projection_of_concatenation(self):
         schema = Schema()
         schema.add_column('column#0')
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['transformer#0'],
-                               transformer=ProjectionTransformer(2, 1))
-        schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'],
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         got = compile_expression(
-            ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 1))
+            ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0))
         self.assertEqual(schema, got)
+
+    def test_compiling_projection__of_concatenation_sets_info_values(self):
+        tree = ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0)
+        compile_expression(tree)
+        expected_info = {
+            'type': SimpleType('int', {}),
+            'assigned_name': None,
+            'names': ['arbitrary#0'],
+        }
+        self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_double_assignment(self):
         schema = Schema()
@@ -378,6 +454,16 @@ class TestCompilation(unittest.TestCase):
         got = compile_expression(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'))
         self.assertEqual(schema, got)
 
+    def test_compiling_double_assignment_sets_info_value(self):
+        tree = AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b')
+        compile_expression(tree)
+        expected_info = {
+            'type': SimpleType('int', {}),
+            'assigned_name': 'b',
+            'names': ['a'],
+        }
+        self.assertEqual(expected_info, tree.info)
+
     def test_can_compile_triple_assignment(self):
         schema = Schema()
         schema.add_column('c')
@@ -388,3 +474,13 @@ class TestCompilation(unittest.TestCase):
         schema.add_transformer('transformer#2', inputs=['b'], outputs=['c'], transformer=IdentityTransformer(1))
         got = compile_expression(AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c'))
         self.assertEqual(schema, got)
+
+    def test_compiling_triple_assignment_sets_info_value(self):
+        tree = AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c')
+        compile_expression(tree)
+        expected_info = {
+            'type': SimpleType('int', {}),
+            'assigned_name': 'c',
+            'names': ['b'],
+        }
+        self.assertEqual(expected_info, tree.info)
