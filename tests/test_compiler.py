@@ -346,10 +346,7 @@ class TestCompilation(unittest.TestCase):
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['a'], outputs=['transformer#1'],
-                               transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#2', inputs=['transformer#1'], outputs=['column#1'],
-                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'], transformer=IdentityTransformer(1))
         got = compile_expression(
             BinaryOpNode.of(
                 '.',
@@ -366,8 +363,8 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'in_names': ['a', 'transformer#1'],
-            'out_names': ['a', 'transformer#1'],
+            'in_names': ['a', 'arbitrary#0'],
+            'out_names': ['a', 'arbitrary#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -379,13 +376,9 @@ class TestCompilation(unittest.TestCase):
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['a'], outputs=['transformer#1'],
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#2', inputs=['a'], outputs=['transformer#2'],
-                               transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#3', inputs=['transformer#1'], outputs=['column#1'],
-                               transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#4', inputs=['transformer#2'], outputs=['column#2'],
+        schema.add_transformer('transformer#2', inputs=['arbitrary#0'], outputs=['column#2'],
                                transformer=IdentityTransformer(1))
         got = compile_expression(
             BinaryOpNode.of(
@@ -414,8 +407,8 @@ class TestCompilation(unittest.TestCase):
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})],
                                  config={'left_config': {}, 'right_config': {}}),
             'assigned_name': None,
-            'in_names': ['a', 'transformer#1', 'transformer#2'],
-            'out_names': ['a', 'transformer#1', 'transformer#2'],
+            'in_names': ['a', 'arbitrary#0', 'arbitrary#0'],
+            'out_names': ['a', 'arbitrary#0', 'arbitrary#0'],
         }
         self.assertEqual(expected_info, tree.info)
 

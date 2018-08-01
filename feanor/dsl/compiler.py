@@ -217,12 +217,9 @@ def compile_expression(expr: ExprNode, func_env=None, compatible=default_compati
                 raise TypeError('Invalid operator ' + operator)
         elif isinstance(cur_node, ReferenceNode):
             name, = children_values
-            transformer_name = new_transformer_name()
-            transformer = IdentityTransformer(len(env[name]))
-            schema.add_transformer(transformer_name, inputs=[name], outputs=[transformer_name], transformer=transformer)
             cur_node.info['assigned_name'] = None
             cur_node.info['in_names'] = [name]
-            cur_node.info['out_names'] = [transformer_name]
+            cur_node.info['out_names'] = env[name]
             return cur_node
         elif isinstance(cur_node, ProjectionNode):
             result, *indices = children_values
