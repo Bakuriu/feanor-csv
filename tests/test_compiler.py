@@ -6,71 +6,78 @@ from feanor.dsl.types import *
 from feanor.schema import *
 
 
-class TestGetType(unittest.TestCase):
-    def test_can_get_the_type_of_a_type_name_node(self):
-        got = get_type(TypeNameNode.of('int'))
+class TestTypeInferencer(unittest.TestCase):
+    def setUp(self):
+        self.inferencer = TypeInferencer()
+
+    def test_can_infer_type_of_a_type_name_node(self):
+        got = self.inferencer.infer(TypeNameNode.of('int'))
         self.assertEqual(SimpleType('int', {}), got)
 
-    def test_getting_the_type_of_type_name_node_sets_info_value(self):
+    def test_inferring_type_of_type_name_node_sets_info_value(self):
         tree = TypeNameNode.of('int')
-        get_type(tree)
+        self.inferencer.infer(tree)
         self.assertEqual({'type': SimpleType('int', {})}, tree.info)
 
-    def test_can_get_the_type_of_a_reference_node(self):
+    def test_can_infer_type_of_a_reference_node(self):
         expected_type = SimpleType('int', {})
-        got = get_type(ReferenceNode.of('a'), {'a': expected_type})
+        inferencer = TypeInferencer(env={'a': expected_type})
+        got = inferencer.infer(ReferenceNode.of('a'))
         self.assertEqual(expected_type, got)
 
-    def test_getting_the_type_of_reference_node_sets_info_value(self):
+    def test_inferring_type_of_reference_node_sets_info_value(self):
         expected_type = SimpleType('int', {})
         tree = ReferenceNode.of('a')
-        get_type(tree, {'a': expected_type})
+        inferencer = TypeInferencer(env={'a': expected_type})
+        inferencer.infer(tree)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_call(self):
+    def test_can_infer_type_of_call(self):
         expected_type = SimpleType('int', {})
         arg_type = SimpleType('float', {})
         env = {'a': arg_type}
-        got = get_type(CallNode.of('func', [ReferenceNode.of('a')]), env=env,
-                       func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(env=env, func_env={'func': ([arg_type], expected_type)})
+        got = inferencer.infer(CallNode.of('func', [ReferenceNode.of('a')]))
         self.assertEqual(expected_type, got)
 
-    def test_getting_the_type_of_call_node_sets_info_value(self):
+    def test_inferring_type_of_call_node_sets_info_value(self):
         expected_type = SimpleType('int', {})
         arg_type = SimpleType('float', {})
         env = {'a': arg_type}
         arg_node = ReferenceNode.of('a')
         tree = CallNode.of('func', [arg_node])
-        get_type(tree, env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer.infer(tree)
         self.assertEqual({'type': arg_type}, arg_node.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_merge(self):
-        got = get_type(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')),
-                       compatible=lambda x, y: True)
+    def test_can_infer_type_of_merge(self):
+        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        got = inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
         expected_type = MergeType([SimpleType('int', {}), SimpleType('float', {})])
         self.assertEqual(expected_type, got)
 
-    def test_getting_type_from_merge_sets_info_value(self):
+    def test_inferring_type_of_merge_sets_info_value(self):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('+', left_arg, right_arg)
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
         expected_type = MergeType([left_arg_type, right_arg_type])
-        get_type(tree, compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_choice(self):
-        got = get_type(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('float')))
+    def test_can_infer_type_of_choice(self):
+        got = self.inferencer.infer(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('float')))
         expected_config = {'left_config': {}, 'right_config': {}}
         expected_type = ChoiceType([SimpleType('int', {}), SimpleType('float', {})], config=expected_config)
         self.assertEqual(expected_type, got)
         self.assertEqual(1, got.num_outputs)
 
-    def test_getting_type_from_choice_sets_info_value(self):
+    def test_inferring_type_of_choice_sets_info_value(self):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('|', left_arg, right_arg)
@@ -78,72 +85,78 @@ class TestGetType(unittest.TestCase):
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
         expected_type = ChoiceType([left_arg_type, right_arg_type], config=expected_config)
-        get_type(tree, compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_concatenation(self):
-        got = get_type(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
+    def test_can_infer_type_of_concatenation(self):
+        got = self.inferencer.infer(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
         expected_type = ParallelType([SimpleType('int', {}), SimpleType('float', {})])
         self.assertEqual(expected_type, got)
         self.assertEqual(2, got.num_outputs)
 
-    def test_getting_type_from_concatenation_sets_info_value(self):
+    def test_inferring_type_of_concatenation_sets_info_value(self):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('.', left_arg, right_arg)
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
         expected_type = ParallelType([left_arg_type, right_arg_type])
-        get_type(tree, compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_assignment(self):
-        got = get_type(AssignNode.of(TypeNameNode.of('int'), 'a'))
+    def test_can_infer_type_of_assignment(self):
+        got = self.inferencer.infer(AssignNode.of(TypeNameNode.of('int'), 'a'))
         self.assertEqual(SimpleType('int', {}), got)
 
-    def test_getting_type_from_assignment_sets_info_value(self):
+    def test_inferring_type_of_assignment_sets_info_value(self):
         expr = TypeNameNode.of('int')
         tree = AssignNode.of(expr, 'a')
-        get_type(tree)
+        self.inferencer.infer(tree)
         expected_type = SimpleType('int', {})
         self.assertEqual({'type': expected_type}, expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_simple_projection(self):
+    def test_can_infer_type_of_simple_projection(self):
         env = {'a': ParallelType([SimpleType('int'), SimpleType('float'), SimpleType('string')])}
-        got = get_type(ProjectionNode.of(ReferenceNode.of('a'), 1), env=env)
+        inferencer = TypeInferencer(env=env)
+        got = inferencer.infer(ProjectionNode.of(ReferenceNode.of('a'), 1))
         self.assertEqual(SimpleType('float'), got)
 
-    def test_getting_type_from_simple_projection_sets_info_value(self):
+    def test_inferring_type_of_simple_projection_sets_info_value(self):
         expr_type = ParallelType([SimpleType('int'), SimpleType('float'), SimpleType('string')])
         env = {'a': expr_type}
         expr = ReferenceNode.of('a')
         tree = ProjectionNode.of(expr, 1)
-        get_type(tree, env=env)
+        inferencer = TypeInferencer(env=env)
+        inferencer.infer(tree)
         expected_type = SimpleType('float')
         self.assertEqual({'type': expr_type}, expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_from_projection_with_multiple_indices(self):
+    def test_can_infer_type_of_projection_with_multiple_indices(self):
         env = {'a': ParallelType([SimpleType('int'), SimpleType('float'), SimpleType('string')])}
-        got = get_type(ProjectionNode.of(ReferenceNode.of('a'), 1, 2), env=env)
+        inferencer = TypeInferencer(env=env)
+        got = inferencer.infer(ProjectionNode.of(ReferenceNode.of('a'), 1, 2))
         self.assertEqual(ParallelType([SimpleType('float'), SimpleType('string')]), got)
 
-    def test_getting_type_from_projection_with_multiple_indices_sets_info_value(self):
+    def test_inferring_type_of_projection_with_multiple_indices_sets_info_value(self):
         expr_type = ParallelType([SimpleType('int'), SimpleType('float'), SimpleType('string')])
         env = {'a': expr_type}
         expr = ReferenceNode.of('a')
         tree = ProjectionNode.of(expr, 1, 2)
-        get_type(tree, env=env)
+        inferencer = TypeInferencer(env=env)
+        inferencer.infer(tree)
         expected_type = ParallelType([SimpleType('float'), SimpleType('string')])
         self.assertEqual({'type': expr_type}, expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
-    def test_can_get_type_of_merge_with_multiple_columns(self):
+    def test_can_infer_type_of_merge_with_multiple_columns(self):
         left_inner_types = [SimpleType('int'), SimpleType('float')]
         left_ty = ParallelType(left_inner_types)
         right_inner_types = [SimpleType('int'), SimpleType('int')]
@@ -154,12 +167,13 @@ class TestGetType(unittest.TestCase):
         }
         left_expr = ReferenceNode.of('a')
         right_expr = ReferenceNode.of('b')
-        got = get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env, compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatible=lambda x, y: True, env=env)
+        got = inferencer.infer(BinaryOpNode.of('+', left_expr, right_expr))
         expected_type = ParallelType(map(MergeType, zip(left_inner_types, right_inner_types)))
         self.assertEqual(expected_type, got)
         self.assertEqual(2, expected_type.num_outputs)
 
-    def test_getting_type_of_merge_with_multiple_columns_sets_info_value(self):
+    def test_inferring_type_of_merge_with_multiple_columns_sets_info_value(self):
         left_inner_types = [SimpleType('int'), SimpleType('float')]
         left_ty = ParallelType(left_inner_types)
         right_inner_types = [SimpleType('int'), SimpleType('int')]
@@ -171,7 +185,8 @@ class TestGetType(unittest.TestCase):
         left_expr = ReferenceNode.of('a')
         right_expr = ReferenceNode.of('b')
         tree = BinaryOpNode.of('+', left_expr, right_expr)
-        get_type(tree, env=env, compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatible=lambda x, y: True, env=env)
+        got = inferencer.infer(tree)
         expected_type = ParallelType(map(MergeType, zip(left_inner_types, right_inner_types)))
         self.assertEqual({'type': left_ty}, left_expr.info)
         self.assertEqual({'type': right_ty}, right_expr.info)
@@ -179,7 +194,7 @@ class TestGetType(unittest.TestCase):
 
     def test_raises_error_when_merging_incompatible_types(self):
         with self.assertRaises(TypeError):
-            get_type(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
+            self.inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
 
     def test_raises_error_when_merging_incompatible_types_with_more_columns(self):
         left_expr = ReferenceNode.of('a')
@@ -191,7 +206,8 @@ class TestGetType(unittest.TestCase):
             'b': right_ty,
         }
         with self.assertRaises(TypeError):
-            get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env)
+            inferencer = TypeInferencer(env=env)
+            inferencer.infer(BinaryOpNode.of('+', left_expr, right_expr))
 
 
 class TestDefaultCompatibility(unittest.TestCase):
@@ -231,7 +247,7 @@ class TestCompilation(unittest.TestCase):
         got = compile_expression(TypeNameNode.of('int'))
         self.assertEqual(schema, got)
 
-    def test_compililing_a_type_name_node_with_no_config_sets_info_value(self):
+    def test_compiling_a_type_name_node_with_no_config_sets_info_value(self):
         tree = TypeNameNode.of('int')
         compile_expression(tree)
         expected_info = {
@@ -342,7 +358,8 @@ class TestCompilation(unittest.TestCase):
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'],
+                               transformer=IdentityTransformer(1))
         got = compile_expression(
             BinaryOpNode.of(
                 '.',

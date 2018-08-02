@@ -1,10 +1,11 @@
 from itertools import starmap
 
+from ..util import overloaded
 from .ast import *
 from .types import *
 from ..schema import *
 
-__all__ = ['default_compatibility', 'get_type', 'compile_expression']
+__all__ = ['default_compatibility', 'TypeInferencer', 'compile_expression']
 
 
 def default_compatibility(x, y):
@@ -31,126 +32,118 @@ def default_compatibility(x, y):
         )
 
 
-def get_type(tree: ExprNode, env=None, func_env=None, compatible=default_compatibility) -> Type:
-    if env is None:
-        env = {}
-    if func_env is None:
-        func_env = {}
+class TypeInferencer:
+    def __init__(self, env=None, func_env=None, compatible=default_compatibility):
+        self.env = env if env is not None else {}
+        self.func_env = func_env if func_env is not None else {}
+        self.compatible = compatible
 
-    func_mapping = {
-        TypeNameNode: _get_type_from_definition,
-        ReferenceNode: _get_type_from_reference,
-        AssignNode: _get_type_from_assignment,
-        ProjectionNode: _get_type_from_projection,
-        CallNode: _get_type_from_call,
-        BinaryOpNode: _get_type_from_bin_op,
+    @overloaded
+    def infer(self, tree: ExprNode) -> Type:
+        raise TypeError('Invalid node type: {}'.format(tree))
 
-    }
+    @infer.register(TypeNameNode)
+    def _(self, tree: TypeNameNode):
+        inferred_type = SimpleType(tree.children[0].name, tree.children[1].config)
+        tree.info['type'] = inferred_type
+        return inferred_type
 
-    return func_mapping[tree.__class__](tree, env, func_env, compatible)
+    @infer.register(ReferenceNode)
+    def _(self, tree: ReferenceNode):
+        inferred_type = self.env[tree.children[0].name]
+        tree.info['type'] = inferred_type
+        return inferred_type
 
+    @infer.register(AssignNode)
+    def _(self, tree: AssignNode):
+        inferred_type = self.infer(tree.children[0])
+        name = tree.children[1].name
+        if name in self.env:
+            raise TypeError('Already defined name {!r}'.format(name))
+        self.env[name] = inferred_type
+        tree.info['type'] = inferred_type
+        return inferred_type
 
-def _get_type_from_definition(type_definition: TypeNameNode, env, func_env, compatible):
-    ty = SimpleType(type_definition.children[0].name, type_definition.children[1].config)
-    type_definition.info['type'] = ty
-    return ty
+    @infer.register(ProjectionNode)
+    def _(self, tree: ProjectionNode):
+        argument_type = self.infer(tree.children[0])
+        if not isinstance(argument_type, CompositeType):
+            raise TypeError('Projection on a non-composite type {}'.format(argument_type))
+        if not all(index.literal in range(len(argument_type.types)) for index in tree.children[1:]):
+            raise TypeError('Indices out of range for projection')
+        indices = tree.children[1:]
+        if len(indices) > 1:
+            inferred_type = ParallelType(argument_type.types[index.literal] for index in indices)
+        else:
+            inferred_type = argument_type.types[indices[0].literal]
+        tree.info['type'] = inferred_type
+        return inferred_type
 
-
-def _get_type_from_reference(reference: ReferenceNode, env, func_env, compatible):
-    ty = env[reference.children[0].name]
-    reference.info['type'] = ty
-    return ty
-
-
-def _get_type_from_assignment(assignment: AssignNode, env, func_env, compatible):
-    ty = get_type(assignment.children[0], env, func_env, compatible)
-    name = assignment.children[1].name
-    if name in env:
-        raise TypeError('Already defined name {!r}'.format(name))
-    env[name] = ty
-    assignment.info['type'] = ty
-    return ty
-
-
-def _get_type_from_projection(projection: ProjectionNode, env, func_env, compatible):
-    ty = get_type(projection.children[0], env, func_env, compatible)
-    if not isinstance(ty, CompositeType):
-        raise TypeError('Projection on a non-composite type {}'.format(ty))
-    if not all(index.literal in range(len(ty.types)) for index in projection.children[1:]):
-        raise TypeError('Indices out of range for projection')
-    indices = projection.children[1:]
-    if len(indices) > 1:
-        ret_type = ParallelType(ty.types[index.literal] for index in indices)
-    else:
-        ret_type = ty.types[indices[0].literal]
-    projection.info['type'] = ret_type
-    return ret_type
-
-
-def _get_type_from_call(call: CallNode, env, func_env, compatible):
-    arg_types = [get_type(arg, env, func_env, compatible) for arg in call.children[1:]]
-    func_name = call.children[0].name
-    expected_arg_types, ret_type = func_env[func_name]
-    if len(arg_types) != len(expected_arg_types):
-        raise TypeError(
-            f'Incorrect number of arguments to function {func_name}: {len(arg_types)} instead of {len(expected_arg_types)}')
-    for i, (arg_type, expected_arg_type) in enumerate(zip(arg_types, expected_arg_types)):
-        if not compatible(arg_type, expected_arg_type):
+    @infer.register(CallNode)
+    def _(self, tree: CallNode):
+        inferred_arg_types = list(map(self.infer, tree.children[1:]))
+        func_name = tree.children[0].name
+        expected_arg_types, inferred_type = self.func_env[func_name]
+        if len(inferred_arg_types) != len(expected_arg_types):
             raise TypeError(
-                f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
-    call.info['type'] = ret_type
-    return ret_type
+                f'Incorrect number of arguments to function {func_name}: '
+                f'{len(inferred_arg_types)} instead of {len(expected_arg_types)}')
+        for i, (arg_type, expected_arg_type) in enumerate(zip(inferred_arg_types, expected_arg_types)):
+            if not self.compatible(arg_type, expected_arg_type):
+                raise TypeError(
+                    f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
+        tree.info['type'] = inferred_type
+        return inferred_type
 
+    @infer.register(BinaryOpNode)
+    def _(self, tree: BinaryOpNode):
+        left_ty = self.infer(tree.children[1])
+        right_ty = self.infer(tree.children[3])
+        if tree.children[0].name == '+':
+            inferred_type = self._infer_merge(tree, left_ty, right_ty)
+        elif tree.children[0].name == '|':
+            inferred_type = self._infer_choice(tree, left_ty, right_ty)
+        else:
+            inferred_type = self._infer_concat(tree, left_ty, right_ty)
+        tree.info['type'] = inferred_type
+        return inferred_type
 
-def _get_type_from_bin_op(bin_op: BinaryOpNode, env, func_env, compatible):
-    if bin_op.children[0].name == '+':
-        ty = _get_type_from_merge(bin_op, env, func_env, compatible)
-    elif bin_op.children[0].name == '|':
-        ty = _get_type_from_choice(bin_op, env, func_env, compatible)
-    else:
-        ty = _get_type_from_parallel_composition(bin_op, env, func_env, compatible)
-    bin_op.info['type'] = ty
-    return ty
-
-
-def _get_type_from_merge(merge: BinaryOpNode, env, func_env, compatible):
-    left_ty = get_type(merge.children[1], env, func_env, compatible)
-    right_ty = get_type(merge.children[3], env, func_env, compatible)
-    if isinstance(left_ty, ParallelType) and isinstance(right_ty, ParallelType):
-        if left_ty.num_outputs != right_ty.num_outputs:
-            raise TypeError('Incompatible types for merge: {!r} and {!r}.'.format(left_ty, right_ty))
-        zipped_types = list(zip(left_ty.types, right_ty.types))
-        if not all(starmap(compatible, zipped_types)):
+    def _infer_merge(self, merge: BinaryOpNode, left_ty, right_ty):
+        if isinstance(left_ty, ParallelType) and isinstance(right_ty, ParallelType):
+            if left_ty.num_outputs != right_ty.num_outputs:
+                raise TypeError('Incompatible types for merge: {!r} and {!r}.'.format(left_ty, right_ty))
+            zipped_types = list(zip(left_ty.types, right_ty.types))
+            if not all(starmap(self.compatible, zipped_types)):
+                raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
+            new_inner_types = list(map(MergeType, zipped_types))
+            return ParallelType(new_inner_types)
+        elif isinstance(left_ty, ParallelType) ^ isinstance(right_ty, ParallelType):
             raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
-        new_inner_types = list(map(MergeType, zipped_types))
-        return ParallelType(new_inner_types)
-    elif isinstance(left_ty, ParallelType) ^ isinstance(right_ty, ParallelType):
-        raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
-    if not compatible(left_ty, right_ty):
-        raise TypeError('Cannot add incompatible types {} and {}'.format(left_ty, right_ty))
-    return MergeType([left_ty, right_ty])
+        if not self.compatible(left_ty, right_ty):
+            raise TypeError('Cannot add incompatible types {} and {}'.format(left_ty, right_ty))
+        return MergeType([left_ty, right_ty])
 
 
-def _get_type_from_parallel_composition(parallel: BinaryOpNode, env, func_env, compatible):
-    left_ty = get_type(parallel.children[1], env, func_env, compatible)
-    right_ty = get_type(parallel.children[3], env, func_env, compatible)
-    return ParallelType([left_ty, right_ty])
+    def _infer_choice(self, choice: BinaryOpNode, left_ty, right_ty):
+        return ChoiceType([left_ty, right_ty],
+                          {'left_config': choice.children[2] or {}, 'right_config': choice.children[4] or {}})
+
+    def _infer_concat(self, parallel: BinaryOpNode, left_ty, right_ty):
+        return ParallelType([left_ty, right_ty])
 
 
-def _get_type_from_choice(choice: BinaryOpNode, env, func_env, compatible):
-    left_ty = get_type(choice.children[1], env, func_env, compatible)
-    right_ty = get_type(choice.children[3], env, func_env, compatible)
-    return ChoiceType([left_ty, right_ty],
-                      {'left_config': choice.children[2] or {}, 'right_config': choice.children[4] or {}})
 
 
-def compile_expression(expr: ExprNode, func_env=None, compatible=default_compatibility) -> Schema:
-    func_env = func_env or {}
-    env = {}
 
-    get_type(expr, env, func_env, compatible)
+def compile_expression(expr: ExprNode, schema=None, env=None, func_env=None, compatible=default_compatibility) -> Schema:
+    func_env = func_env if func_env is not None else {}
+    env = env if env is not None else {}
+    typing_env = env.setdefault('::typing_dict', {})
 
-    schema = Schema()
+    inferencer = TypeInferencer(typing_env, func_env, compatible)
+    inferencer.infer(expr)
+
+    schema = Schema() if schema is None else schema
 
     cur_arbitrary_id = 0
     cur_transformer_id = 0
