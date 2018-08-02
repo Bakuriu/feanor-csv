@@ -244,8 +244,8 @@ class MergeTransformer(Transformer):
         super().__init__(arity, arity//2)
 
     def __call__(self, inputs):
-        left_inputs = inputs[:self.arity]
-        right_inputs = inputs[self.arity:]
+        left_inputs = inputs[:self.num_outputs]
+        right_inputs = inputs[self.num_outputs:]
         return tuple(x + y for x, y in zip(left_inputs, right_inputs))
 
     def __eq__(self, other):
