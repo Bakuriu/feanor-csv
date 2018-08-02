@@ -85,8 +85,7 @@ class TestGetType(unittest.TestCase):
 
     def test_can_get_type_from_concatenation(self):
         got = get_type(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
-        expected_config = {'left_config': {}, 'right_config': {}}
-        expected_type = ParallelType([SimpleType('int', {}), SimpleType('float', {})], config=expected_config)
+        expected_type = ParallelType([SimpleType('int', {}), SimpleType('float', {})])
         self.assertEqual(expected_type, got)
         self.assertEqual(2, got.num_outputs)
 
@@ -94,10 +93,9 @@ class TestGetType(unittest.TestCase):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('.', left_arg, right_arg)
-        expected_config = {'left_config': {}, 'right_config': {}}
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
-        expected_type = ParallelType([left_arg_type, right_arg_type], config=expected_config)
+        expected_type = ParallelType([left_arg_type, right_arg_type])
         get_type(tree, compatible=lambda x, y: True)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
@@ -277,8 +275,7 @@ class TestCompilation(unittest.TestCase):
         tree = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
-                                 config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})]), 'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['arbitrary#0', 'arbitrary#1'],
         }
@@ -355,11 +352,10 @@ class TestCompilation(unittest.TestCase):
         tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), ReferenceNode.of('a'))
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})],
-                                 config={'left_config': {}, 'right_config': {}}),
-            'assigned_name': None,
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})]),
             'in_names': ['a', 'arbitrary#0'],
             'out_names': ['a', 'arbitrary#0'],
+            'assigned_name': None,
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -399,8 +395,7 @@ class TestCompilation(unittest.TestCase):
         )
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})],
-                                 config={'left_config': {}, 'right_config': {}}),
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})]),
             'assigned_name': None,
             'in_names': ['a', 'arbitrary#0', 'arbitrary#0'],
             'out_names': ['a', 'arbitrary#0', 'arbitrary#0'],
@@ -423,8 +418,7 @@ class TestCompilation(unittest.TestCase):
         tree = AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a')
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})],
-                                 config={'left_config': {}, 'right_config': {}}),
+            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})]),
             'assigned_name': 'a',
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['a#0', 'a#1'],
@@ -514,8 +508,7 @@ class TestCompilation(unittest.TestCase):
         tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float'))
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})],
-                                 config={'left_config': {}, 'right_config': {}}),
+            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})]),
             'assigned_name': None,
             'in_names': ['a', 'arbitrary#1'],
             'out_names': ['a', 'arbitrary#1'],
@@ -543,8 +536,7 @@ class TestCompilation(unittest.TestCase):
             BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float'))
         compile_expression(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('float', {})],
-                                 config={'left_config': {}, 'right_config': {}}),
+            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('float', {})]),
             'assigned_name': None,
             'in_names': ['a#0', 'a#1', 'arbitrary#2'],
             'out_names': ['a#0', 'a#1', 'arbitrary#2'],

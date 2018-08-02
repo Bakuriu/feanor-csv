@@ -122,8 +122,7 @@ def _get_type_from_merge(merge: BinaryOpNode, env, func_env, compatible):
 def _get_type_from_parallel_composition(parallel: BinaryOpNode, env, func_env, compatible):
     left_ty = get_type(parallel.children[1], env, func_env, compatible)
     right_ty = get_type(parallel.children[3], env, func_env, compatible)
-    return ParallelType([left_ty, right_ty],
-                        {'left_config': parallel.children[2] or {}, 'right_config': parallel.children[4] or {}})
+    return ParallelType([left_ty, right_ty])
 
 
 def _get_type_from_choice(choice: BinaryOpNode, env, func_env, compatible):
