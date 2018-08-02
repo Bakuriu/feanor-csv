@@ -116,8 +116,7 @@ def _get_type_from_merge(merge: BinaryOpNode, env, func_env, compatible):
     right_ty = get_type(merge.children[3], env, func_env, compatible)
     if not compatible(left_ty, right_ty):
         raise TypeError('Cannot add incompatible types {} and {}'.format(left_ty, right_ty))
-    return MergeType([left_ty, right_ty],
-                     {'left_config': merge.children[2] or {}, 'right_config': merge.children[4] or {}})
+    return MergeType([left_ty, right_ty])
 
 
 def _get_type_from_parallel_composition(parallel: BinaryOpNode, env, func_env, compatible):

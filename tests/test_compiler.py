@@ -48,18 +48,16 @@ class TestGetType(unittest.TestCase):
     def test_can_get_type_from_merge(self):
         got = get_type(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')),
                        compatible=lambda x, y: True)
-        expected_config = {'left_config': {}, 'right_config': {}}
-        expected_type = MergeType([SimpleType('int', {}), SimpleType('float', {})], config=expected_config)
+        expected_type = MergeType([SimpleType('int', {}), SimpleType('float', {})])
         self.assertEqual(expected_type, got)
 
     def test_getting_type_from_merge_sets_info_value(self):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('+', left_arg, right_arg)
-        expected_config = {'left_config': {}, 'right_config': {}}
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
-        expected_type = MergeType([left_arg_type, right_arg_type], config=expected_config)
+        expected_type = MergeType([left_arg_type, right_arg_type])
         get_type(tree, compatible=lambda x, y: True)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
@@ -157,8 +155,7 @@ class TestGetType(unittest.TestCase):
             'b': right_ty,
         }
         got = get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env, compatible=lambda x, y: True)
-        expected_config = {'left_config': {}, 'right_config': {}}
-        expected_type = MergeType([left_ty, right_ty], config=expected_config)
+        expected_type = MergeType([left_ty, right_ty])
         self.assertEqual(expected_type, got)
         self.assertEqual(2, expected_type.num_outputs)
 
@@ -173,8 +170,7 @@ class TestGetType(unittest.TestCase):
         }
         tree = BinaryOpNode.of('+', left_expr, right_expr)
         get_type(tree, env=env, compatible=lambda x, y: True)
-        expected_config = {'left_config': {}, 'right_config': {}}
-        expected_type = MergeType([left_ty, right_ty], config=expected_config)
+        expected_type = MergeType([left_ty, right_ty])
         self.assertEqual({'type': left_ty}, left_expr.info)
         self.assertEqual({'type': right_ty}, right_expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
@@ -331,8 +327,7 @@ class TestCompilation(unittest.TestCase):
         tree = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int'))
         compile_expression(tree)
         expected_info = {
-            'type': MergeType([SimpleType('int', {}), SimpleType('int', {})],
-                              config={'left_config': {}, 'right_config': {}}),
+            'type': MergeType([SimpleType('int', {}), SimpleType('int', {})]),
             'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['transformer#0#0', 'transformer#0#1'],
