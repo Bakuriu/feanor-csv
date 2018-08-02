@@ -35,47 +35,22 @@ def p_expr_dispatcher(p):
 
 def p_choice(p):
     """choice : choice '+' term
-              | choice '<' opt_literal choice_dispatcher
               | term
     """
     if len(p) == 4:
         p[0] = BinaryOpNode.of(p[2], p[1], p[3])
-    elif len(p) == 5:
-        operator, right_config, right = p[4]
-        left_config = p[3]
-        p[0] = BinaryOpNode(operator, p[1], left_config, right, right_config)
     else:
         p[0] = p[1]
-
-
-def p_choice_dispatcher(p):
-    """choice_dispatcher : '+' opt_literal '>' term
-                         | '|' opt_literal '>' choice
-    """
-    p[0] = (Identifier(p[1]), p[2], p[4])
 
 
 def p_term(p):
     """term : term '.' concatenandum
-            | term '<' opt_literal term_dispatcher
             | concatenandum
     """
     if len(p) == 4:
         p[0] = BinaryOpNode.of(p[2], p[1], p[3])
-    elif len(p) == 5:
-        operator, right_config, right = p[4]
-        left_config = p[3]
-        p[0] = BinaryOpNode(operator, p[1], left_config, right, right_config)
     else:
         p[0] = p[1]
-
-
-def p_term_dispatcher(p):
-    """term_dispatcher : '.' opt_literal '>' concatenandum
-                       | '+' opt_literal '>' term
-                       | '|' opt_literal '>' choice
-    """
-    p[0] = (Identifier(p[1]), p[2], p[4])
 
 
 def p_concatenandum(p):

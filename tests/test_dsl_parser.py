@@ -55,84 +55,18 @@ class TestParser(ParsingTestCase):
         self.assertEqual(expected, got)
 
     def test_can_parse_merge(self):
-        got = self.parser.parse('#int<+>#float')
+        got = self.parser.parse('#int + #float')
         expected = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float'))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_merge_no_angle_parenthesis(self):
-        got = self.parser.parse('#int+#float')
-        expected = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float'))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_merge_with_left_config(self):
-        got = self.parser.parse('#int<5+>#float')
-        expected = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float'), LiteralNode(5))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_merge_with_right_config(self):
-        got = self.parser.parse('#int<+"ciao">#float')
-        expected = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float'),
-                                   right_config=LiteralNode("ciao"))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_merge_with_left_and_right_config(self):
-        got = self.parser.parse('#int<"ciao"+5>#float')
-        expected = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float'), LiteralNode("ciao"),
-                                   LiteralNode(5))
         self.assertEqual(expected, got)
 
     def test_can_parse_concat(self):
-        got = self.parser.parse('#int<.>#float')
+        got = self.parser.parse('#int . #float')
         expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_no_angle_parenthesis(self):
-        got = self.parser.parse('#int.#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_with_left_config(self):
-        got = self.parser.parse('#int<5.>#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'), LiteralNode(5))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_with_right_config(self):
-        got = self.parser.parse('#int<."ciao">#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'),
-                                   right_config=LiteralNode("ciao"))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_with_left_and_right_config(self):
-        got = self.parser.parse('#int<"ciao".5>#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'), LiteralNode("ciao"),
-                                   LiteralNode(5))
         self.assertEqual(expected, got)
 
     def test_can_parse_concat_center_dot(self):
-        got = self.parser.parse('#int<·>#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_no_angle_parenthesis_center_dot(self):
         got = self.parser.parse('#int·#float')
         expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_with_left_config_center_dot(self):
-        got = self.parser.parse('#int<5·>#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'), LiteralNode(5))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_with_right_config_center_dot(self):
-        got = self.parser.parse('#int<·"ciao">#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'),
-                                   right_config=LiteralNode("ciao"))
-        self.assertEqual(expected, got)
-
-    def test_can_parse_concat_with_left_and_right_config_center_dot(self):
-        got = self.parser.parse('#int<"ciao"·5>#float')
-        expected = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'), LiteralNode("ciao"),
-                                   LiteralNode(5))
         self.assertEqual(expected, got)
 
     def test_call_no_arguments(self):
@@ -228,13 +162,11 @@ class TestOperatorPrecedence(ParsingTestCase):
 
 class TestComplexExpressions(ParsingTestCase):
     def test_assignment_can_be_used_as_operand(self):
-        got = self.parser.parse('(#int)=a<"ciao"+5>#float')
+        got = self.parser.parse('(#int)=a + #float')
         expected = BinaryOpNode.of(
             '+',
             AssignNode.of(TypeNameNode.of('int'), 'a'),
             TypeNameNode.of('float'),
-            LiteralNode("ciao"),
-            LiteralNode(5)
         )
         self.assertEqual(expected, got)
 
@@ -245,20 +177,18 @@ class TestComplexExpressions(ParsingTestCase):
         self.assertEqual(expected, got)
 
     def test_call_two_arguments_complex(self):
-        got = self.parser.parse('func((@a<|>#int),(@b<+>#float))')
+        got = self.parser.parse('func((@a<|>#int),(@b + #float))')
         arg_one = BinaryOpNode.of('|', ReferenceNode.of('a'), TypeNameNode.of('int'))
         arg_two = BinaryOpNode.of('+', ReferenceNode.of('b'), TypeNameNode.of('float'))
         expected = CallNode.of('func', (arg_one, arg_two))
         self.assertEqual(expected, got)
 
     def test_assignment_complex_expression(self):
-        got = self.parser.parse('(#int<"ciao"+5>#float)=name')
+        got = self.parser.parse('(#int + #float)=name')
         expr = BinaryOpNode.of(
             '+',
             TypeNameNode.of('int'),
             TypeNameNode.of('float'),
-            LiteralNode("ciao"),
-            LiteralNode(5)
         )
         expected = AssignNode.of(expr, 'name')
         self.assertEqual(expected, got)
@@ -303,3 +233,11 @@ class TestIncorrectExpressions(ParsingTestCase):
     def test_raises_error_if_missing_final_brace(self):
         with self.assertRaises(ParsingError):
             self.parser.parse('#int{"ciao":5')
+
+    def test_raises_error_if_merge_inside_angle_parenthesis(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('#int <+> #float')
+
+    def test_raises_error_if_concat_inside_angle_parenthesis(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('#int <.> #float')
