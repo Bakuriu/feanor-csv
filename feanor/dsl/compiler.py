@@ -5,7 +5,7 @@ from .ast import *
 from .types import *
 from ..schema import *
 
-__all__ = ['default_compatibility', 'TypeInferencer', 'compile_expression']
+__all__ = ['default_compatibility', 'TypeInferencer', 'Compiler']
 
 
 def default_compatibility(x, y):
@@ -134,113 +134,125 @@ class TypeInferencer:
 
 
 
+class Compiler:
+    def __init__(self, env=None, func_env=None, compatibility=default_compatibility):
+        self.compatibility = compatibility
+        self.func_env = func_env if func_env is not None else {}
+        self.env = env if env is not None else {}
+        self.typing_env = self.env.setdefault('::types::', {})
+        self._inferencer = TypeInferencer(env=self.typing_env, func_env=self.func_env, compatible=self.compatibility)
+        self._schema = Schema()
+        self._cur_arbitrary_id = 0
+        self._cur_transformer_id = 0
+        self._compiled_expressions = []
 
-def compile_expression(expr: ExprNode, schema=None, env=None, func_env=None, compatible=default_compatibility) -> Schema:
-    func_env = func_env if func_env is not None else {}
-    env = env if env is not None else {}
-    typing_env = env.setdefault('::typing_dict', {})
-
-    inferencer = TypeInferencer(typing_env, func_env, compatible)
-    inferencer.infer(expr)
-
-    schema = Schema() if schema is None else schema
-
-    cur_arbitrary_id = 0
-    cur_transformer_id = 0
-
-    def new_transformer_name():
-        nonlocal cur_transformer_id
-        name = 'transformer#{}'.format(cur_transformer_id)
-        cur_transformer_id += 1
+    def _new_transformer_name(self) -> str:
+        name = 'transformer#{}'.format(self._cur_transformer_id)
+        self._cur_transformer_id += 1
         return name
 
-    def visitor(cur_node: ExprNode, *children_values):
-        nonlocal cur_arbitrary_id, cur_transformer_id
+    def _new_arbitrary_name(self) -> str:
+        name = 'arbitrary#{}'.format(self._cur_arbitrary_id)
+        self._cur_arbitrary_id += 1
+        return name
 
-        if isinstance(cur_node, Identifier):
-            return cur_node.name
-        elif isinstance(cur_node, Config):
-            return cur_node.config
-        elif isinstance(cur_node, LiteralNode):
-            return cur_node.literal
-        elif isinstance(cur_node, TypeNameNode):
-            type_name, config = children_values
-            name = 'arbitrary#{}'.format(cur_arbitrary_id)
-            cur_arbitrary_id += 1
-            schema.add_arbitrary(name, type=type_name, config=config)
-            cur_node.info['assigned_name'] = None
-            cur_node.info['in_names'] = [name]
-            cur_node.info['out_names'] = [name]
-            return cur_node
-        elif isinstance(cur_node, AssignNode):
-            result, name = children_values
-            res_outputs = result.info['out_names']
-            env[name] = res_outputs
-            if len(res_outputs) == 1:
-                schema.add_transformer(new_transformer_name(), inputs=res_outputs, outputs=[name],
-                                       transformer=IdentityTransformer(1))
-                cur_node.info['in_names'] = res_outputs
+    def compile(self, expr: ExprNode) -> Schema:
+        self.feed_expression(expr)
+        return self.complete_compilation()
+
+    def feed_expression(self, expr: ExprNode) -> None:
+        self._inferencer.infer(expr)
+
+        def visitor(cur_node: ExprNode, *children_values):
+
+            if isinstance(cur_node, Identifier):
+                return cur_node.name
+            elif isinstance(cur_node, Config):
+                return cur_node.config
+            elif isinstance(cur_node, LiteralNode):
+                return cur_node.literal
+            elif isinstance(cur_node, TypeNameNode):
+                type_name, config = children_values
+                name = self._new_arbitrary_name()
+                self._schema.add_arbitrary(name, type=type_name, config=config)
+                cur_node.info['assigned_name'] = None
+                cur_node.info['in_names'] = [name]
                 cur_node.info['out_names'] = [name]
+                return cur_node
+            elif isinstance(cur_node, AssignNode):
+                result, name = children_values
+                res_outputs = result.info['out_names']
+                self.env[name] = res_outputs
+                if len(res_outputs) == 1:
+                    self._schema.add_transformer(self._new_transformer_name(), inputs=res_outputs, outputs=[name],
+                                           transformer=IdentityTransformer(1))
+                    cur_node.info['in_names'] = res_outputs
+                    cur_node.info['out_names'] = [name]
+                else:
+                    names = ['{}#{}'.format(name, i) for i in range(len(res_outputs))]
+                    self._schema.add_transformer(self._new_transformer_name(), inputs=res_outputs, outputs=names,
+                                           transformer=IdentityTransformer(len(res_outputs)))
+                    cur_node.info['in_names'] = res_outputs
+                    cur_node.info['out_names'] = names
+                cur_node.info['assigned_name'] = name
+                return cur_node
+            elif isinstance(cur_node, BinaryOpNode):
+                operator, left, left_config, right, right_config = children_values
+                all_in_names = left.info['out_names'] + right.info['out_names']
+                if operator == '.':
+                    cur_node.info['assigned_name'] = None
+                    cur_node.info['in_names'] = all_in_names
+                    cur_node.info['out_names'] = all_in_names
+                    return cur_node
+                elif operator == '|':
+                    transformer_name = self._new_transformer_name()
+                    left_config = left_config.literal if left_config is not None else 0.5
+                    right_config = right_config.literal if right_config is not None else 0.5
+                    transformer = ChoiceTransformer(len(all_in_names), left_config, right_config)
+                    self._schema.add_transformer(transformer_name, inputs=all_in_names, outputs=[transformer_name],
+                                           transformer=transformer)
+                    cur_node.info['assigned_name'] = None
+                    cur_node.info['in_names'] = all_in_names
+                    cur_node.info['out_names'] = [transformer_name]
+                    return cur_node
+                elif operator == '+':
+                    transformer_name = self._new_transformer_name()
+                    transformer = MergeTransformer(len(all_in_names), left_config, right_config)
+                    outputs = ['{}#{}'.format(transformer_name, i) for i in range(transformer.num_outputs)]
+                    self._schema.add_transformer(transformer_name, inputs=all_in_names, outputs=outputs,
+                                           transformer=transformer)
+                    cur_node.info['assigned_name'] = None
+                    cur_node.info['in_names'] = all_in_names
+                    cur_node.info['out_names'] = outputs
+                    return cur_node
+                else:
+                    raise TypeError('Invalid operator ' + operator)
+            elif isinstance(cur_node, ReferenceNode):
+                name, = children_values
+                cur_node.info['assigned_name'] = None
+                cur_node.info['in_names'] = [name]
+                cur_node.info['out_names'] = self.env[name]
+                return cur_node
+            elif isinstance(cur_node, ProjectionNode):
+                result, *indices = children_values
+                cur_node.info['assigned_name'] = None
+                output_names = [n for i, n in enumerate(result.info['out_names']) if i in indices]
+                cur_node.info['out_names'] = output_names
+                cur_node.info['in_names'] = result.info['out_names']
+                return cur_node
             else:
-                names = ['{}#{}'.format(name, i) for i in range(len(res_outputs))]
-                schema.add_transformer(new_transformer_name(), inputs=res_outputs, outputs=names,
-                                       transformer=IdentityTransformer(len(res_outputs)))
-                cur_node.info['in_names'] = res_outputs
-                cur_node.info['out_names'] = names
-            cur_node.info['assigned_name'] = name
-            return cur_node
-        elif isinstance(cur_node, BinaryOpNode):
-            operator, left, left_config, right, right_config = children_values
-            all_in_names = left.info['out_names'] + right.info['out_names']
-            if operator == '.':
-                cur_node.info['assigned_name'] = None
-                cur_node.info['in_names'] = all_in_names
-                cur_node.info['out_names'] = all_in_names
-                return cur_node
-            elif operator == '|':
-                transformer_name = new_transformer_name()
-                left_config = left_config.literal if left_config is not None else 0.5
-                right_config = right_config.literal if right_config is not None else 0.5
-                transformer = ChoiceTransformer(len(all_in_names), left_config, right_config)
-                schema.add_transformer(transformer_name, inputs=all_in_names, outputs=[transformer_name], transformer=transformer)
-                cur_node.info['assigned_name'] = None
-                cur_node.info['in_names'] = all_in_names
-                cur_node.info['out_names'] = [transformer_name]
-                return cur_node
-            elif operator == '+':
-                transformer_name = new_transformer_name()
-                transformer = MergeTransformer(len(all_in_names), left_config, right_config)
-                outputs = ['{}#{}'.format(transformer_name, i) for i in range(transformer.num_outputs)]
-                schema.add_transformer(transformer_name, inputs=all_in_names, outputs=outputs, transformer=transformer)
-                cur_node.info['assigned_name'] = None
-                cur_node.info['in_names'] = all_in_names
-                cur_node.info['out_names'] = outputs
-                return cur_node
-            else:
-                raise TypeError('Invalid operator ' + operator)
-        elif isinstance(cur_node, ReferenceNode):
-            name, = children_values
-            cur_node.info['assigned_name'] = None
-            cur_node.info['in_names'] = [name]
-            cur_node.info['out_names'] = env[name]
-            return cur_node
-        elif isinstance(cur_node, ProjectionNode):
-            result, *indices = children_values
-            cur_node.info['assigned_name'] = None
-            output_names = [n for i, n in enumerate(result.info['out_names']) if i in indices]
-            cur_node.info['out_names'] = output_names
-            cur_node.info['in_names'] = result.info['out_names']
-            return cur_node
-        else:
-            raise TypeError('Invalid node ' + str(cur_node))
+                raise TypeError('Invalid node ' + str(cur_node))
 
-    result = expr.visit(visitor)
-    identity = IdentityTransformer(1)
-    for i, name in enumerate(result.info['out_names']):
-        if name.startswith('arbitrary#') or name.startswith('transformer#'):
-            col_name = 'column#{}'.format(i)
-            schema.add_column(col_name)
-            schema.add_transformer(new_transformer_name(), inputs=[name], outputs=[col_name], transformer=identity)
-        else:
-            schema.add_column(name)
-    return schema
+        self._compiled_expressions.append(expr.visit(visitor))
+
+    def complete_compilation(self) -> Schema:
+        identity = IdentityTransformer(1)
+        result = self._compiled_expressions[0]
+        for i, name in enumerate(result.info['out_names']):
+            if name.startswith('arbitrary#') or name.startswith('transformer#'):
+                col_name = 'column#{}'.format(i)
+                self._schema.add_column(col_name)
+                self._schema.add_transformer(self._new_transformer_name(), inputs=[name], outputs=[col_name], transformer=identity)
+            else:
+                self._schema.add_column(name)
+        return self._schema

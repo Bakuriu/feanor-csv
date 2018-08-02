@@ -237,19 +237,21 @@ class TestDefaultCompatibility(unittest.TestCase):
                                                    cls([SimpleType('int'), SimpleType('not-string')])))
 
 
-class TestCompilation(unittest.TestCase):
+class TestCompiler(unittest.TestCase):
+    def setUp(self):
+        self.compiler = Compiler()
     def test_can_compile_a_type_name_node_with_no_config(self):
         schema = Schema()
         schema.add_column('column#0')
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(TypeNameNode.of('int'))
+        got = self.compiler.compile(TypeNameNode.of('int'))
         self.assertEqual(schema, got)
 
     def test_compiling_a_type_name_node_with_no_config_sets_info_value(self):
         tree = TypeNameNode.of('int')
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': None,
@@ -264,12 +266,12 @@ class TestCompilation(unittest.TestCase):
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(AssignNode.of(TypeNameNode.of('int'), 'a'))
+        got = self.compiler.compile(AssignNode.of(TypeNameNode.of('int'), 'a'))
         self.assertEqual(schema, got)
 
     def test_compiling_an_assignment_of_a_type_name_sets_info_value(self):
         tree = AssignNode.of(TypeNameNode.of('int'), 'a')
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': 'a',
@@ -288,12 +290,12 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')))
+        got = self.compiler.compile(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
 
     def test_compiling_concatenation_of_two_type_names_sets_info_value(self):
         tree = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})]), 'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
@@ -310,12 +312,12 @@ class TestCompilation(unittest.TestCase):
                                transformer=ChoiceTransformer(2, 0.5, 0.5))
         schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int')))
+        got = self.compiler.compile(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
 
     def test_compiling_choice_of_two_type_names_sets_info_value(self):
         tree = BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int'))
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ChoiceType([SimpleType('int', {}), SimpleType('int', {})],
                                config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
@@ -337,12 +339,12 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#2', inputs=['transformer#0#1'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int')))
+        got = self.compiler.compile(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
 
     def test_compiling_merge_of_two_type_names_sets_info_value(self):
         tree = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int'))
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': MergeType([SimpleType('int', {}), SimpleType('int', {})]),
             'assigned_name': None,
@@ -360,7 +362,7 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(
+        got = self.compiler.compile(
             BinaryOpNode.of(
                 '.',
                 AssignNode.of(TypeNameNode.of('int'), 'a'),
@@ -371,7 +373,7 @@ class TestCompilation(unittest.TestCase):
 
     def test_compiling_reference_sets_info_value(self):
         tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), ReferenceNode.of('a'))
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})]),
             'in_names': ['a', 'arbitrary#0'],
@@ -392,7 +394,7 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#2', inputs=['arbitrary#0'], outputs=['column#2'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(
+        got = self.compiler.compile(
             BinaryOpNode.of(
                 '.',
                 AssignNode.of(TypeNameNode.of('int'), 'a'),
@@ -414,7 +416,7 @@ class TestCompilation(unittest.TestCase):
                 ReferenceNode.of('a'),
             )
         )
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})]),
             'assigned_name': None,
@@ -431,13 +433,13 @@ class TestCompilation(unittest.TestCase):
         schema.add_arbitrary('arbitrary#1', type='float')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['a#0', 'a#1'],
                                transformer=IdentityTransformer(2))
-        got = compile_expression(
+        got = self.compiler.compile(
             AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a'))
         self.assertEqual(schema, got)
 
     def test_compiling_an_assignment_of_two_type_names_sets_info_value(self):
         tree = AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a')
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})]),
             'assigned_name': 'a',
@@ -453,13 +455,13 @@ class TestCompilation(unittest.TestCase):
         schema.add_arbitrary('arbitrary#1', type='float')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(
+        got = self.compiler.compile(
             ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0))
         self.assertEqual(schema, got)
 
     def test_compiling_projection_of_concatenation_sets_info_values(self):
         tree = ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0)
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': None,
@@ -475,12 +477,12 @@ class TestCompilation(unittest.TestCase):
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['a'], outputs=['b'], transformer=IdentityTransformer(1))
-        got = compile_expression(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'))
+        got = self.compiler.compile(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'))
         self.assertEqual(schema, got)
 
     def test_compiling_double_assignment_sets_info_value(self):
         tree = AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b')
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': 'b',
@@ -497,12 +499,12 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['a'], outputs=['b'], transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#2', inputs=['b'], outputs=['c'], transformer=IdentityTransformer(1))
-        got = compile_expression(AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c'))
+        got = self.compiler.compile(AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c'))
         self.assertEqual(schema, got)
 
     def test_compiling_triple_assignment_sets_info_value(self):
         tree = AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c')
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int', {}),
             'assigned_name': 'c',
@@ -521,13 +523,13 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(
+        got = self.compiler.compile(
             BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float')))
         self.assertEqual(schema, got)
 
     def test_compiling_concatenation_with_assignment_inside_sets_info_value(self):
         tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float'))
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})]),
             'assigned_name': None,
@@ -548,14 +550,14 @@ class TestCompilation(unittest.TestCase):
                                transformer=IdentityTransformer(2))
         schema.add_transformer('transformer#1', inputs=['arbitrary#2'], outputs=['column#2'],
                                transformer=IdentityTransformer(1))
-        got = compile_expression(BinaryOpNode.of('.', AssignNode.of(
+        got = self.compiler.compile(BinaryOpNode.of('.', AssignNode.of(
             BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float')))
         self.assertEqual(schema, got)
 
     def test_compiling_concatenation_with_assignment_inside_on_concat_sets_info_value(self):
         tree = BinaryOpNode.of('.', AssignNode.of(
             BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float'))
-        compile_expression(tree)
+        self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('float', {})]),
             'assigned_name': None,
