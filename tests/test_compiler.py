@@ -240,6 +240,7 @@ class TestDefaultCompatibility(unittest.TestCase):
 class TestCompiler(unittest.TestCase):
     def setUp(self):
         self.compiler = Compiler()
+
     def test_can_compile_a_type_name_node_with_no_config(self):
         schema = Schema()
         schema.add_column('column#0')
@@ -334,7 +335,7 @@ class TestCompiler(unittest.TestCase):
         schema.add_arbitrary('arbitrary#1', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'],
                                outputs=['transformer#0#0', 'transformer#0#1'],
-                               transformer=MergeTransformer(2, None, None))
+                               transformer=MergeTransformer(2))
         schema.add_transformer('transformer#1', inputs=['transformer#0#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#2', inputs=['transformer#0#1'], outputs=['column#1'],
@@ -565,3 +566,54 @@ class TestCompiler(unittest.TestCase):
             'out_names': ['a#0', 'a#1', 'arbitrary#2'],
         }
         self.assertEqual(expected_info, tree.info)
+
+    def test_can_compile_multiple_simple_expressions(self):
+        schema = Schema()
+        schema.add_column('INTERO')
+        schema.add_column('FLOAT')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'], transformer=IdentityTransformer(1))
+
+        self.compiler.feed_expression(TypeNameNode.of('int'))
+        self.compiler.feed_expression(TypeNameNode.of('float'))
+        got = self.compiler.complete_compilation(column_names=['INTERO', 'FLOAT'])
+        self.assertEqual(schema, got)
+
+    def test_when_compiling_multiple_expressions_number_of_outputs_per_expression_is_taken_into_account(self):
+        schema = Schema()
+        schema.add_column('INTERO')
+        schema.add_column('FLOAT')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'], transformer=IdentityTransformer(1))
+
+        self.compiler.feed_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
+        got = self.compiler.complete_compilation(column_names=['INTERO', 'FLOAT'])
+        self.assertEqual(schema, got)
+
+    def test_when_providing_less_than_the_number_of_columns_values_are_selected(self):
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'], transformer=IdentityTransformer(1))
+
+        self.compiler.feed_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a')))
+        got = self.compiler.complete_compilation(column_names=['a'])
+        self.assertEqual(schema, got)
+
+    def test_example_with_merge(self):
+        schema = Schema()
+        schema.add_column('transformer#1#0')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_arbitrary('arbitrary#1', type='int')
+        schema.add_arbitrary('arbitrary#2', type='float')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0', 'a'], outputs=['transformer#1#0'], transformer=MergeTransformer(2))
+
+        self.compiler.feed_expression(BinaryOpNode.of('.', BinaryOpNode.of('+', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('int'), 'a')), TypeNameNode.of('float')))
+        got = self.compiler.complete_compilation(column_names=['transformer#1#0'])
+        self.assertEqual(schema, got)

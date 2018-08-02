@@ -1,4 +1,5 @@
 from itertools import starmap
+from typing import List
 
 from ..util import overloaded
 from .ast import *
@@ -143,16 +144,6 @@ class Compiler:
         self._cur_transformer_id = 0
         self._compiled_expressions = []
 
-    def _new_transformer_name(self) -> str:
-        name = 'transformer#{}'.format(self._cur_transformer_id)
-        self._cur_transformer_id += 1
-        return name
-
-    def _new_arbitrary_name(self) -> str:
-        name = 'arbitrary#{}'.format(self._cur_arbitrary_id)
-        self._cur_arbitrary_id += 1
-        return name
-
     def compile(self, expr: ExprNode) -> Schema:
         self.feed_expression(expr)
         return self.complete_compilation()
@@ -161,19 +152,29 @@ class Compiler:
         self._inferencer.infer(expr)
         self._compiled_expressions.append(expr.visit(self.visitor))
 
-    def complete_compilation(self) -> Schema:
+    def complete_compilation(self, *, column_names: List[str]=None) -> Schema:
         identity = IdentityTransformer(1)
-        result = self._compiled_expressions[0]
-        for i, name in enumerate(result.info['out_names']):
-            if name.startswith('arbitrary#') or name.startswith('transformer#'):
-                col_name = 'column#{}'.format(i)
-                self._schema.add_column(col_name)
-                self._schema.add_transformer(
-                    self._new_transformer_name(),
-                    inputs=[name], outputs=[col_name],
-                    transformer=identity)
-            else:
-                self._schema.add_column(name)
+        out_names = list(chain.from_iterable(res.info['out_names'] for res in self._compiled_expressions))
+        if column_names is None:
+            column_names = []
+            for i, name in enumerate(out_names):
+                if name.startswith('arbitrary#') or name.startswith('transformer#'):
+                    column_names.append('column#{}'.format(i))
+                else:
+                    column_names.append(name)
+
+        for col_name in column_names:
+            self._schema.add_column(col_name)
+
+        if len(out_names) == len(column_names):
+            for name, col_name in zip(out_names, column_names):
+                if name != col_name:
+                    self._schema.add_transformer(
+                        self._new_transformer_name(),
+                        inputs=[name], outputs=[col_name],
+                        transformer=identity
+                        )
+
         return self._schema
 
     @overloaded
@@ -243,7 +244,7 @@ class Compiler:
             return cur_node
         elif operator == '+':
             transformer_name = self._new_transformer_name()
-            transformer = MergeTransformer(len(all_in_names), left_config, right_config)
+            transformer = MergeTransformer(len(all_in_names))
             outputs = ['{}#{}'.format(transformer_name, i) for i in range(transformer.num_outputs)]
             self._schema.add_transformer(transformer_name, inputs=all_in_names, outputs=outputs,
                                          transformer=transformer)
@@ -270,3 +271,13 @@ class Compiler:
         cur_node.info['out_names'] = output_names
         cur_node.info['in_names'] = result.info['out_names']
         return cur_node
+
+    def _new_transformer_name(self) -> str:
+        name = 'transformer#{}'.format(self._cur_transformer_id)
+        self._cur_transformer_id += 1
+        return name
+
+    def _new_arbitrary_name(self) -> str:
+        name = 'arbitrary#{}'.format(self._cur_arbitrary_id)
+        self._cur_arbitrary_id += 1
+        return name

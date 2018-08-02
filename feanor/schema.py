@@ -240,10 +240,8 @@ class ChoiceTransformer(Transformer):
 
 
 class MergeTransformer(Transformer):
-    def __init__(self, arity, left_config, right_config):
-        super().__init__(arity, arity)
-        self._left_config = left_config
-        self._right_config = right_config
+    def __init__(self, arity):
+        super().__init__(arity, arity//2)
 
     def __call__(self, inputs):
         left_inputs = inputs[:self.arity]
