@@ -11,8 +11,8 @@ Release `1.0.0` will provide a stable API and stable command line interface for 
 
 ```
 $ feanor --help
-usage: feanor [-h] -c NAME [-a NAME TYPE] [-t NAME INPUTS OUTPUTS EXPR]
-              [--no-header] (-n N | -b N | --stream-mode STREAM_MODE)
+usage: feanor [-h] -c NAME EXPR [-d NAME EXPR] [--no-header]
+              (-n N | -b N | --stream-mode STREAM_MODE)
               [OUTPUT-FILE]
 
 positional arguments:
@@ -20,13 +20,11 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -c NAME, --column NAME
+  -c NAME EXPR, --column NAME EXPR
                         Add a column with the given name.
-  -a NAME TYPE, --arbitrary NAME TYPE
-                        Add an arbitrary with the given name and type.
-  -t NAME INPUTS OUTPUTS EXPR, --transformer NAME INPUTS OUTPUTS EXPR
-                        Add a transformer with the given name, inputs, outputs
-                        and expression.
+  -d NAME EXPR, --define NAME EXPR
+                        Define a Feanor expression with the given name and
+                        type.
   --no-header           Do not add header to the output.
   -n N, --num-rows N    The number of rows of the produced CSV
   -b N, --num-bytes N   The approximate number of bytes of the produced CSV
@@ -37,48 +35,65 @@ optional arguments:
 
 ## Arbitrary types
 
-Each arbitrary is assigned an "arbitrary type", which describes how to generate the values of that column.
+Each arbitrary is assigned an "arbitrary type", which describes how to generate the values.
 The syntax of the arbitrary type is the following:
 
-    <ARBITRARY_NAME> [ CONFIG ]
+    # <ARBITRARY_NAME> [ CONFIG ]
 
 Where `ARBITRARY_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
 
 For example the built-in `int` arbitrary type can be used in the following ways:
 
- - `int` or `int{}`: default configuration
- - `int{"lowerbound": 10}`: do not generate numbers smaller than `10` (inclusive).
- - `int{"upperbound": 10}`: do not generate numbers bigger than `10` (inclusive).
- - `int{"lowerbound": 10, "upperbound":1000}`: generate numbers between `10` and `1000` (both inclusive).
+ - `#int` or `#int{}`: default configuration
+ - `#int{"lowerbound": 10}`: do not generate numbers smaller than `10` (inclusive).
+ - `#int{"upperbound": 10}`: do not generate numbers bigger than `10` (inclusive).
+ - `#int{"lowerbound": 10, "upperbound":1000}`: generate numbers between `10` and `1000` (both inclusive).
 
 
-## Transformer definitions
+## Feanor DSL Expressions
 
-Transformers allow to express complex logic for data generation. They allow you to fill a column only `10%` of the time,
-or to fill a column with the sum of two other columns in the same row.
+Values are defined by a simple DSL that allows you to combine multiple arbitraries in different ways and they
+allow to express complex logic for your data generation.
 
-A transformer is defined by the `-t/--transformer` option:
+### Arbitrary definitions
 
-```
---transformer NAME INPUTS OUTPUTS EXPR
-```
+An arbitrary definition is simply its type and follows the syntax `#<NAME>[CONFIG]` as explained before.
 
-The `NAME` is needed to identify one transformer. You can have multiple transformers with the same `INPUTS`, `OUTPUTS`
-and `EXPR`, but not with the same name.
 
-The `INPUTS` is a comma-delimited list of defined names. The `OUTPUTS` is a comma-delimited list of names that
-this transformer defines. `EXPR` is a python expression that should return a tuple or a single value.
+### Assignments
 
-A transformer is applied to the values it receives from its `INPUTS` (which might be arbitraries defined with `--arbitrary`,
-or names found in `OUTPUTS` of other transformers), by evaluating the Python expression `EXPR`.
-The scope in which `EXPR` is evaluated contains the references to `INPUTS` values and the `random` module.
+You can assign a name to a certain expression with the syntax `(<expr>)=<NAME>`.
 
-The value returned by `EXPR` should be a tuple with the same size of the `OUTPUTS` (or might be a plain value if there is only
-one output value).
 
-After evaluation the current scope is updated with the newly defined values.
+### References
 
-Transformers are applied in the order in which they are defined, and a transformer can overwrite an existing value.
+You can refer to the values of an expression to which you assigned a name by using the syntax `@<NAME>`.
+
+### Concatenation
+
+You can concatenate multiple values using the syntax `<expr_1> . <expr_2>` or `<expr_1> · <expr_2>`.
+
+### Choice
+
+You can define an expression that can randomly take a value by using the choice operator `|` using the
+syntax `<expr_1> | <expr_2>`.
+
+The value of such expression will take the value of `expr_1` for `50%` of the time and the value of `expr_2`
+the other times. You can specify the chances with the syntax: `expr_1 <0.3|0.7> expr_2`.
+In this case the expression will evaluate to `expr_1` only `30%` of the time and to `expr_2` the remaining `70%`
+of the time. You may omit one of the two numbers, hence `expr_1 <0.3|> expr_2` is equivalent to the last
+expression.
+
+If the sum of the left and right weight add up to a value smaller than `1` then the remaining portion
+is the chance of the value to be empty. For example `expr_1 <0.25|0.25> expr_2` defines
+an expression that in `25%` of the time evaluates to `expr_1`, `25%` of the time evaluates to `expr_2`
+and `50%` of the time evaluates to `None` (i.e. empty)
+
+### Merge
+
+You can define an expression that can merge values of two different expressions using the `+` operator.
+
+For example `#int + #float` is an expression that evaluates to the sum of a random integer and a random float.
 
 
 ## Examples
@@ -86,26 +101,26 @@ Transformers are applied in the order in which they are defined, and a transform
 Generate 10 rows with random integers:
 
 ```
-$ feanor -c a -c b --arbitrary a int --arbitrary b int -n 10
+$ feanor -c a '#int' -c b '#int' -n 10
 a,b
-609270,269960
-644115,544953
-380617,867613
-7235,822990
-571,67928
-577245,893342
-947965,384183
-158251,910056
-664935,511383
-817864,59221
+560419,658031
+655804,421309
+167612,374010
+749885,652208
+769247,842866
+99285,979394
+985242,786600
+291957,485927
+390879,830346
+528892,930577
 ```
 
-Generate about 1 kilobyte of rows with 3 random integers in them and write result to `/tmp/out.csv`:
+Generate about 1 kilobyte of rows with 2 random integers in them and write result to `/tmp/out.csv`:
 
 ```
-$ feanor -c a -c b --arbitrary a int --arbitrary b int -b 1024 /tmp/out.csv
-$ ls -l /tmp/out.csv
--rw-rw-r-- 1 user user 1038 lug 13 20:48 /tmp/out.csv
+$ feanor -c a '#int' -c b '#int' -b 1024 /tmp/out.csv
+$ ls -l /tmp/out.csv 
+-rw-rw-r-- 1 user user 1027 ago  3 00:17 /tmp/out.csv
 ```
 
 
@@ -113,33 +128,33 @@ $ ls -l /tmp/out.csv
 Generate 10 rows with random integers, the first column between `0` and `10`, the second column between `0` and `1000`:
 
 ```
-$ feanor -c a -c b --arbitrary a 'int{"lowerbound":0,"upperbound":10}' --arbitrary b 'int{"lowerbound":0,"upperbound":1000}' -n 10
+$ feanor -c a '#int{"lowerbound":0,"upperbound":10}' -c b '#int{"lowerbound":0,"upperbound":1000}' -n 10
 a,b
-2,883
-5,244
-8,959
-3,248
-10,275
-0,827
-3,245
-5,345
-0,396
-6,137
+5,943
+4,965
+8,962
+2,957
+8,521
+8,630
+4,535
+10,630
+7,139
+8,283
 ```
 
 Generate 10 rows with random integers and their sum:
 
 ```
-$ feanor -c a -c b -c c --arbitrary a 'int' --arbitrary b 'int' -t sum a,b c 'a+b' -n 10
+$ feanor -c a '#int' -c b '#int' -c c '@a+@b' -n 10
 a,b,c
-469985,425117,895102
-563866,161162,725028
-672940,845418,1518358
-87775,16432,104207
-332363,237117,569480
-18358,250279,268637
-808188,560466,1368654
-881993,905116,1787109
-322832,707592,1030424
-876583,256120,1132703
+959911,805488,1765399
+963573,781193,1744766
+825514,327790,1153304
+304667,455607,760274
+529196,891481,1420677
+100948,692883,793831
+991054,975422,1966476
+249764,741283,991047
+141396,606592,747988
+979772,929347,1909119
 ```
