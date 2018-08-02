@@ -40,7 +40,7 @@ def get_schema_and_size_params(args):
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--column', nargs=2, help='Add a column with the given name.', dest='columns',
-                        action='append', metavar='NAME EXPR', required=True)
+                        action='append', metavar=('NAME', 'EXPR'), required=True)
     parser.add_argument('-d', '--define', nargs=2, help='Define a Feanor expression with the given name and type.',
                         dest='expressions_defined', action='append', metavar=('NAME', 'EXPR'), default=[])
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.',
