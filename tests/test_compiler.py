@@ -144,31 +144,35 @@ class TestGetType(unittest.TestCase):
         self.assertEqual({'type': expected_type}, tree.info)
 
     def test_can_get_type_of_merge_with_multiple_columns(self):
-        left_expr = ReferenceNode.of('a')
-        right_expr = ReferenceNode.of('b')
-        left_ty = ParallelType([SimpleType('int'), SimpleType('float')])
-        right_ty = ParallelType([SimpleType('int'), SimpleType('int')])
+        left_inner_types = [SimpleType('int'), SimpleType('float')]
+        left_ty = ParallelType(left_inner_types)
+        right_inner_types = [SimpleType('int'), SimpleType('int')]
+        right_ty = ParallelType(right_inner_types)
         env = {
             'a': left_ty,
             'b': right_ty,
         }
+        left_expr = ReferenceNode.of('a')
+        right_expr = ReferenceNode.of('b')
         got = get_type(BinaryOpNode.of('+', left_expr, right_expr), env=env, compatible=lambda x, y: True)
-        expected_type = MergeType([left_ty, right_ty])
+        expected_type = ParallelType(map(MergeType, zip(left_inner_types, right_inner_types)))
         self.assertEqual(expected_type, got)
         self.assertEqual(2, expected_type.num_outputs)
 
     def test_getting_type_of_merge_with_multiple_columns_sets_info_value(self):
-        left_expr = ReferenceNode.of('a')
-        right_expr = ReferenceNode.of('b')
-        left_ty = ParallelType([SimpleType('int'), SimpleType('float')])
-        right_ty = ParallelType([SimpleType('int'), SimpleType('int')])
+        left_inner_types = [SimpleType('int'), SimpleType('float')]
+        left_ty = ParallelType(left_inner_types)
+        right_inner_types = [SimpleType('int'), SimpleType('int')]
+        right_ty = ParallelType(right_inner_types)
         env = {
             'a': left_ty,
             'b': right_ty,
         }
+        left_expr = ReferenceNode.of('a')
+        right_expr = ReferenceNode.of('b')
         tree = BinaryOpNode.of('+', left_expr, right_expr)
         get_type(tree, env=env, compatible=lambda x, y: True)
-        expected_type = MergeType([left_ty, right_ty])
+        expected_type = ParallelType(map(MergeType, zip(left_inner_types, right_inner_types)))
         self.assertEqual({'type': left_ty}, left_expr.info)
         self.assertEqual({'type': right_ty}, right_expr.info)
         self.assertEqual({'type': expected_type}, tree.info)

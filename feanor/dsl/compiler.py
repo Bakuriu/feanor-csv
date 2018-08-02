@@ -1,3 +1,5 @@
+from itertools import starmap
+
 from .ast import *
 from .types import *
 from ..schema import *
@@ -114,6 +116,16 @@ def _get_type_from_bin_op(bin_op: BinaryOpNode, env, func_env, compatible):
 def _get_type_from_merge(merge: BinaryOpNode, env, func_env, compatible):
     left_ty = get_type(merge.children[1], env, func_env, compatible)
     right_ty = get_type(merge.children[3], env, func_env, compatible)
+    if isinstance(left_ty, ParallelType) and isinstance(right_ty, ParallelType):
+        if left_ty.num_outputs != right_ty.num_outputs:
+            raise TypeError('Incompatible types for merge: {!r} and {!r}.'.format(left_ty, right_ty))
+        zipped_types = list(zip(left_ty.types, right_ty.types))
+        if not all(starmap(compatible, zipped_types)):
+            raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
+        new_inner_types = list(map(MergeType, zipped_types))
+        return ParallelType(new_inner_types)
+    elif isinstance(left_ty, ParallelType) ^ isinstance(right_ty, ParallelType):
+        raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
     if not compatible(left_ty, right_ty):
         raise TypeError('Cannot add incompatible types {} and {}'.format(left_ty, right_ty))
     return MergeType([left_ty, right_ty])

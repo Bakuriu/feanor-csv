@@ -11,6 +11,8 @@ class Type(metaclass=ABCMeta):
     def __str__(self):
         return self.name
 
+    __repr__ = __str__
+
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
