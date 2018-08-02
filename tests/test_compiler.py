@@ -330,15 +330,12 @@ class TestCompiler(unittest.TestCase):
     def test_can_compile_merge_of_two_type_names(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_column('column#1')
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_arbitrary('arbitrary#1', type='int')
         schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'],
-                               outputs=['transformer#0#0', 'transformer#0#1'],
+                               outputs=['transformer#0#0'],
                                transformer=MergeTransformer(2))
         schema.add_transformer('transformer#1', inputs=['transformer#0#0'], outputs=['column#0'],
-                               transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#2', inputs=['transformer#0#1'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
@@ -350,7 +347,7 @@ class TestCompiler(unittest.TestCase):
             'type': MergeType([SimpleType('int', {}), SimpleType('int', {})]),
             'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
-            'out_names': ['transformer#0#0', 'transformer#0#1'],
+            'out_names': ['transformer#0#0'],
         }
         self.assertEqual(expected_info, tree.info)
 

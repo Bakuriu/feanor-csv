@@ -133,13 +133,13 @@ class TypeInferencer:
 
 
 class Compiler:
-    def __init__(self, env=None, func_env=None, compatibility=default_compatibility):
+    def __init__(self, env=None, func_env=None, compatibility=default_compatibility, show_header=True):
         self.compatibility = compatibility
         self.func_env = func_env if func_env is not None else {}
         self.env = env if env is not None else {}
         self.typing_env = self.env.setdefault('::types::', {})
         self._inferencer = TypeInferencer(env=self.typing_env, func_env=self.func_env, compatible=self.compatibility)
-        self._schema = Schema()
+        self._schema = Schema(show_header=show_header)
         self._cur_arbitrary_id = 0
         self._cur_transformer_id = 0
         self._compiled_expressions = []
