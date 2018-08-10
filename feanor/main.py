@@ -1,5 +1,6 @@
 import argparse
 import sys
+from itertools import starmap
 
 from .dsl.compiler import Compiler
 from .dsl import get_parser as dsl_get_parser
@@ -57,18 +58,12 @@ def get_parser():
 
 def make_schema(columns, expressions_defined, show_header):
     parser = dsl_get_parser()
-    expressions_defined = ['({})={}'.format(expr, name) for name, expr in expressions_defined]
-    columns_expressions = ['({})={}'.format(expr, name) for name, expr in columns]
-    complete_expression = '.'.join(expressions_defined + columns_expressions)
+    expressions_defined = ' '.join(starmap('{} := ({})'.format, expressions_defined))
+    columns_expressions = ' '.join(starmap('{} := ({})'.format, columns))
+    columns_names = [name for name, _ in columns]
+    complete_expression = 'let {} {} in ({})'.format(expressions_defined, columns_expressions, '.'.join('@'+name for name in columns_names))
 
-    num_expressions_defined = len(expressions_defined)
-    num_columns = len(columns_expressions)
-    num_values_generated = num_expressions_defined + num_columns
-    if num_values_generated > 1:
-        columns_indices = map(str, range(num_expressions_defined, num_values_generated))
-        complete_expression = '({})_({})'.format(complete_expression, ', '.join(columns_indices))
-
-    return Compiler(show_header=show_header).compile(parser.parse(complete_expression))
+    return Compiler(show_header=show_header).compile(parser.parse(complete_expression), column_names=columns_names)
 
 
 

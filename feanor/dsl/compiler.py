@@ -213,17 +213,14 @@ class Compiler:
         self._cur_transformer_id = 0
         self._compiled_expressions = []
 
-    def compile(self, expr: ExprNode) -> Schema:
-        self.feed_expression(expr)
-        return self.complete_compilation()
-
-    def feed_expression(self, expr: ExprNode) -> None:
+    def compile(self, expr: ExprNode, column_names: List[str] = None) -> Schema:
         self._inferencer.infer(expr)
-        self._compiled_expressions.append(expr.visit(self.visitor))
+        result = expr.visit(self.visitor)
+        return self.complete_compilation(result, column_names=column_names)
 
-    def complete_compilation(self, *, column_names: List[str] = None) -> Schema:
+    def complete_compilation(self, result, *, column_names: List[str] = None) -> Schema:
         identity = IdentityTransformer(1)
-        out_names = list(chain.from_iterable(res.info['out_names'] for res in self._compiled_expressions))
+        out_names = result.info['out_names']
         if column_names is None:
             column_names = []
             for i, name in enumerate(out_names):

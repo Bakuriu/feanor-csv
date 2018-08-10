@@ -626,22 +626,6 @@ class TestCompiler(unittest.TestCase):
         got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
         self.assertEqual(schema, got)
 
-    def test_can_compile_multiple_simple_expressions(self):
-        schema = Schema()
-        schema.add_column('INTERO')
-        schema.add_column('FLOAT')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'],
-                               transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'],
-                               transformer=IdentityTransformer(1))
-
-        self.compiler.feed_expression(TypeNameNode.of('int'))
-        self.compiler.feed_expression(TypeNameNode.of('float'))
-        got = self.compiler.complete_compilation(column_names=['INTERO', 'FLOAT'])
-        self.assertEqual(schema, got)
-
     def test_when_compiling_multiple_expressions_number_of_outputs_per_expression_is_taken_into_account(self):
         schema = Schema()
         schema.add_column('INTERO')
@@ -653,8 +637,8 @@ class TestCompiler(unittest.TestCase):
         schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'],
                                transformer=IdentityTransformer(1))
 
-        self.compiler.feed_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
-        got = self.compiler.complete_compilation(column_names=['INTERO', 'FLOAT'])
+        expr = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'))
+        got = self.compiler.compile(expr, column_names=['INTERO', 'FLOAT'])
         self.assertEqual(schema, got)
 
     def test_when_providing_less_than_the_number_of_columns_values_are_selected(self):
@@ -665,9 +649,8 @@ class TestCompiler(unittest.TestCase):
         schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'],
                                transformer=IdentityTransformer(1))
 
-        self.compiler.feed_expression(
-            BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a')))
-        got = self.compiler.complete_compilation(column_names=['a'])
+        expr = BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a'))
+        got = self.compiler.compile(expr, column_names=['a'])
         self.assertEqual(schema, got)
 
     def test_example_with_merge(self):
@@ -681,8 +664,8 @@ class TestCompiler(unittest.TestCase):
         schema.add_transformer('transformer#1', inputs=['arbitrary#0', 'a'], outputs=['transformer#1#0'],
                                transformer=MergeTransformer(2))
 
-        self.compiler.feed_expression(BinaryOpNode.of('.', BinaryOpNode.of('+', TypeNameNode.of('int'),
-                                                                           AssignNode.of(TypeNameNode.of('int'), 'a')),
-                                                      TypeNameNode.of('float')))
-        got = self.compiler.complete_compilation(column_names=['transformer#1#0'])
+        expr = BinaryOpNode.of('.',
+                             BinaryOpNode.of('+', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('int'), 'a')),
+                             TypeNameNode.of('float'))
+        got = self.compiler.compile(expr, column_names=['transformer#1#0'])
         self.assertEqual(schema, got)

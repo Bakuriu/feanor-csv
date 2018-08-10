@@ -57,13 +57,15 @@ class TestCommandLine(unittest.TestCase):
         self.assertEqual(('A', 'B'), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
         self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
-        self.assertEqual(2, len(schema.transformers))
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
-                                    transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#0'], outputs=['B'],
-                                    transformer=IdentityTransformer(1))
+        self.assertEqual(4, len(schema.transformers))
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'], transformer=IdentityTransformer(1))
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#0'], outputs=['B'], transformer=IdentityTransformer(1))
+        expected_transformer_A_copy = SimpleNamespace(name='transformer#2', inputs=['arbitrary#0'], outputs=['A'], transformer=IdentityTransformer(1))
+        expected_transformer_B_copy = SimpleNamespace(name='transformer#3', inputs=['arbitrary#0'], outputs=['B'], transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer_A, schema.transformers[0])
         self.assertEqual(expected_transformer_B, schema.transformers[1])
+        self.assertEqual(expected_transformer_A_copy, schema.transformers[2])
+        self.assertEqual(expected_transformer_B_copy, schema.transformers[3])
 
     @patch('sys.exit')
     def test_can_create_schema_with_third_column_sum_of_two_columns(self, _):
