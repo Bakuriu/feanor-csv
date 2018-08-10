@@ -23,7 +23,6 @@ class Compatibility(metaclass=ABCMeta):
             return True
 
 
-
 class SimpleCompatibility(Compatibility):
 
     def __init__(self, upperbound):
@@ -152,6 +151,18 @@ class TypeInferencer:
             if not self.compatibility.is_compatible(arg_type, expected_arg_type):
                 raise TypeError(
                     f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
+        tree.info['type'] = inferred_type
+        return inferred_type
+
+    @infer.register(LetNode)
+    def _(self, tree: LetNode):
+        *assignments, expr= tree.children
+
+        # we must do this for the side effects on the children and environment!
+        for assignment in assignments:
+            self.infer(assignment)
+
+        inferred_type = self.infer(expr)
         tree.info['type'] = inferred_type
         return inferred_type
 
@@ -328,6 +339,14 @@ class Compiler:
         output_names = [n for i, n in enumerate(result.info['out_names']) if i in indices]
         cur_node.info['out_names'] = output_names
         cur_node.info['in_names'] = result.info['out_names']
+        return cur_node
+
+    @visitor.register(LetNode)
+    def _(self, cur_node: LetNode, *children_values):
+        *assignments, result = children_values
+        cur_node.info['assigned_name'] = None
+        cur_node.info['out_names'] = result.info['out_names']
+        cur_node.info['in_names'] = result.info['in_names']
         return cur_node
 
     def _new_transformer_name(self) -> str:

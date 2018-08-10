@@ -224,6 +224,22 @@ class TestTypeInferencer(unittest.TestCase):
         self.assertEqual({'type': right_ty}, right_expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
+    def test_can_infer_type_of_let_expression(self):
+        inferencer = TypeInferencer()
+        got = inferencer.infer(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
+        self.assertEqual(SimpleType('int'), got)
+
+    def test_inferring_type_of_let_expression_sets_info_value(self):
+        assignment = AssignNode.of(TypeNameNode.of('int'), 'a')
+        reference = ReferenceNode.of('a')
+        inferencer = TypeInferencer()
+        tree = LetNode([assignment], reference)
+        inferencer.infer(tree)
+        self.assertEqual({'type': SimpleType('int')}, assignment.info)
+        self.assertEqual({'type': SimpleType('int')}, reference.info)
+        self.assertEqual({'type': SimpleType('int')}, tree.info)
+
+
     def test_raises_error_when_merging_incompatible_types(self):
         with self.assertRaises(TypeError):
             self.inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
@@ -599,6 +615,16 @@ class TestCompiler(unittest.TestCase):
             'out_names': ['a#0', 'a#1', 'arbitrary#2'],
         }
         self.assertEqual(expected_info, tree.info)
+
+    def test_can_compile_simple_let_expression(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
+
+        got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
+        self.assertEqual(schema, got)
 
     def test_can_compile_multiple_simple_expressions(self):
         schema = Schema()

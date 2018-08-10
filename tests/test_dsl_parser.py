@@ -84,6 +84,17 @@ class TestParser(ParsingTestCase):
         expected = CallNode.of('func', (ReferenceNode.of('a'), TypeNameNode.of('int')))
         self.assertEqual(expected, got)
 
+    def test_let_expression_with_one_define(self):
+        got = self.parser.parse('let a := #int in @a')
+        expected = LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a'))
+        self.assertEqual(expected, got)
+
+    def test_let_expression_with_two_defines(self):
+        got = self.parser.parse('let a := #int b := #float in @a+@b')
+        expected = LetNode.of([('a', TypeNameNode.of('int')), ('b', TypeNameNode.of('float'))],
+                           BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
+        self.assertEqual(expected, got)
+
     def test_parenthesis_do_not_add_a_node_in_ast(self):
         got = self.parser.parse('(#int)')
         expected = TypeNameNode.of('int')
@@ -241,3 +252,23 @@ class TestIncorrectExpressions(ParsingTestCase):
     def test_raises_error_if_concat_inside_angle_parenthesis(self):
         with self.assertRaises(ParsingError):
             self.parser.parse('#int <.> #float')
+
+    def test_raises_error_if_no_defines_in_let(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('let in #int')
+
+    def test_raises_error_if_redefinition_in_let(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('let a := #int a := #float in @a')
+
+    def test_raises_error_if_expr_in_place_of_identifier(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('let @a := #int in @a')
+
+    def test_raises_error_if_try_to_name_variable_let(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('let let := #int in @a')
+
+    def test_raises_error_if_try_to_name_variable_in(self):
+        with self.assertRaises(ParsingError):
+            self.parser.parse('let in := #int in @a')

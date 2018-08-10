@@ -81,6 +81,14 @@ class TestLexer(unittest.TestCase):
         expected_tokens = [('IDENTIFIER', 'func', 1, 0), ('(', '(', 1, 4), (')', ')', 1, 5)]
         self.assertEqualTokens(expected_tokens, tokens)
 
+    def test_let_expression(self):
+        tokens = tokenize('let a := #int in @a')
+        expected_tokens = [
+            ('LET', 'let'), ('IDENTIFIER', 'a'), ('DEFINE', ':='), ('#', '#'), ('IDENTIFIER', 'int'),
+            ('IN', 'in'), ('@', '@'), ('IDENTIFIER', 'a')
+        ]
+        self.assertEqualTokens(expected_tokens, tokens)
+
     def test_parenthesized_type(self):
         tokens = tokenize('(#int)')
         expected_tokens = [

@@ -16,9 +16,10 @@ def p_expr(p):
             | expr '<' opt_literal expr_dispatcher
             | choice
             | call
+            | let_expr
     """
     if len(p) == 4:
-        p[0] = BinaryOpNode.of(p[2], p[1],  p[3])
+        p[0] = BinaryOpNode.of(p[2], p[1], p[3])
     elif len(p) == 5:
         operator, right_config, right = p[4]
         left_config = p[3]
@@ -111,6 +112,23 @@ def p_call(p):
     """call : IDENTIFIER '(' exprlist ')'"""
     p[3].reverse()
     p[0] = CallNode.of(p[1], p[3])
+
+
+def p_let_expr(p):
+    """let_expr : LET defines_list IN expr"""
+    p[2].reverse()
+    p[0] = LetNode.of(p[2], p[4])
+
+
+def p_defines_list(p):
+    """defines_list : IDENTIFIER DEFINE expr
+                    | IDENTIFIER DEFINE expr defines_list
+    """
+    if len(p) == 4:
+        p[0] = [(p[1], p[3])]
+    else:
+        p[0] = p[4]
+        p[0].append((p[1], p[3]))
 
 
 def p_config(p):

@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from typing import Sequence
+from typing import Sequence, Tuple, List
 
 
 class AstNode(metaclass=ABCMeta):
@@ -10,6 +10,8 @@ class AstNode(metaclass=ABCMeta):
 
     def __str__(self):
         return '{}({})'.format(self.__class__.__name__[:-4], ', '.join(map(str, self._children)))
+
+    __repr__ = __str__
 
     @property
     def children(self):
@@ -161,6 +163,18 @@ class ProjectionNode(ExprNode):
     @classmethod
     def of(cls, expr, *indices):
         return cls(expr, *map(LiteralNode, indices))
+
+
+class LetNode(ExprNode):
+    def __init__(self, assignments: List[AssignNode], expr: ExprNode):
+        names = [node.children[1].name for node in assignments]
+        if len(names) != len(set(names)):
+            raise ParsingError('Cannot redefine an already assigned name.')
+        super().__init__(*assignments, expr)
+
+    @classmethod
+    def of(cls, defines: Sequence[Tuple[str, ExprNode]], expr: ExprNode):
+        return cls([AssignNode(e, Identifier.of(name)) for name, e in defines], expr)
 
 
 class ParsingError(ValueError):

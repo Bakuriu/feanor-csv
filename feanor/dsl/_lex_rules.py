@@ -5,6 +5,9 @@ tokens = (
     'STRING',
     'INTEGER',
     'FLOAT',
+    'LET',
+    'IN',
+    'DEFINE',
 )
 
 states = (
@@ -13,7 +16,17 @@ states = (
 
 literals = ['#', '@', '{', '}', '(', ')', '=', '<', '>', '_', ':', ',', '+', '.', '|']
 
+def _word_regex(word):
+    return word + r'\b' + ('(?<=%s)'%word)*10
+
+t_LET = _word_regex('let')
+t_IN = _word_regex('in')
+
 t_IDENTIFIER = r'[a-zA-Z][a-zA-Z0-9]*'
+
+
+
+t_DEFINE = r':='
 
 
 def t_CONCAT(t):
