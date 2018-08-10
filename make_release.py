@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import re
-import argparse
-import importlib
-import shutil
 import sys
 import tempfile
 from itertools import chain
@@ -22,10 +20,8 @@ def get_current_version(path, verbose):
                 if len(expr) > 1:
                     raise ValueError('Invalid expression to define version: {!r}'.format(line))
                 arguments = re.sub(rb'^[^(]+\((.+)\)\s*$', rb'\1', expr[0]).split(b',')
-                print('args', arguments)
                 if len(arguments) != 5:
                     raise ValueError('Invalid number of arguments.')
-                print(list(chain(map(int, arguments[:3]), [arguments[-2], int(arguments[-1])])))
                 return chain(map(int, arguments[:3]), [arguments[-2][1:-1].decode('ascii'), int(arguments[-1])])
         raise ValueError('Could not find version definition in file {!r}'.format(package_init))
 
