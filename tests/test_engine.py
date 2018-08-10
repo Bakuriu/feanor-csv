@@ -33,7 +33,7 @@ class TestEngine(unittest.TestCase):
 
     def test_can_build_a_generator_from_a_schema_with_config(self):
         schema = Schema()
-        schema.define_column('A', type='int', config={'lowerbound': 10})
+        schema.define_column('A', type='int', config={'min': 10})
         engine = Engine(schema, random_funcs=self.rand)
 
         self.assertEqual(1, engine.number_of_columns)

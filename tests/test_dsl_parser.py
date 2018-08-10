@@ -20,8 +20,8 @@ class TestParser(ParsingTestCase):
         self.assertEqual(TypeNameNode.of('int'), got)
 
     def test_can_parse_type_with_config(self):
-        got = self.parser.parse('#int{"lowerbound":10,"upperbound":15}')
-        self.assertEqual(TypeNameNode.of('int', {'lowerbound': 10, 'upperbound': 15}), got)
+        got = self.parser.parse('#int{"min":10,"max":15}')
+        self.assertEqual(TypeNameNode.of('int', {'min': 10, 'max': 15}), got)
 
     def test_can_parse_reference(self):
         got = self.parser.parse('@int')

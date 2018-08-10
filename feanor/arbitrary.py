@@ -40,7 +40,7 @@ def parse_type(arbitrary_type):
     An arbitrary type can have the following two forms:
 
       - a plain type name. E.g. 'int', or 'tax_code'.
-      - a type name with a configuration attached. E.g. 'int{"lowerbound":10}'.
+      - a type name with a configuration attached. E.g. 'int{"min":10}'.
 
     The type name has to match the `\w+` regex, while the optional configuration must be a valid python
     `dict` literal.
@@ -54,10 +54,10 @@ def parse_type(arbitrary_type):
         ('int', {})
         >>> parse_type('int{}')
         ('int', {})
-        >>> parse_type('int{"lowerbound": 10}')
-        ('int', {'lowerbound': 10})
-        >>> parse_type('int{"lowerbound": 10, "upperbound": 20}')
-        ('int', {'lowerbound': 10, 'upperbound': 20})
+        >>> parse_type('int{"min": 10}')
+        ('int', {'min': 10})
+        >>> parse_type('int{"min": 10, "max": 20}')
+        ('int', {'min': 10, 'max': 20})
 
     """
     match = ARBITRARY_TYPE_REGEX.match(arbitrary_type)

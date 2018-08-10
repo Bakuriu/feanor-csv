@@ -314,6 +314,26 @@ class TestCompiler(unittest.TestCase):
         }
         self.assertEqual(expected_info, tree.info)
 
+    def test_can_compile_a_type_name_node_with_config(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int', config={'min': 10})
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        got = self.compiler.compile(TypeNameNode.of('int', {'min': 10}))
+        self.assertEqual(schema, got)
+
+    def test_compiling_a_type_name_node_with_config_sets_info_value(self):
+        tree = TypeNameNode.of('int', {'min': 10})
+        self.compiler.compile(tree)
+        expected_info = {
+            'type': SimpleType('int'),
+            'assigned_name': None,
+            'in_names': ['arbitrary#0'],
+            'out_names': ['arbitrary#0'],
+        }
+        self.assertEqual(expected_info, tree.info)
+
     def test_can_compile_an_assignment_of_a_type_name(self):
         schema = Schema()
         schema.add_column('a')
@@ -624,6 +644,16 @@ class TestCompiler(unittest.TestCase):
         schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
 
         got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
+        self.assertEqual(schema, got)
+
+    def test_can_compile_expression_with_type_config(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='int', config={'min': 10})
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
+
+        got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int', {'min': 10}))], ReferenceNode.of('a')))
         self.assertEqual(schema, got)
 
     def test_when_compiling_multiple_expressions_number_of_outputs_per_expression_is_taken_into_account(self):

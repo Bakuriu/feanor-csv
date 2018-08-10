@@ -11,9 +11,21 @@ Release `1.0.0` will provide a stable API and stable command line interface for 
 
 ```
 $ feanor --help
-usage: feanor [-h] -c NAME EXPR [-d NAME EXPR] [--no-header]
-              (-n N | -b N | --stream-mode STREAM_MODE)
-              [OUTPUT-FILE]
+usage: feanor [-h] [--no-header] (-n N | -b N | --stream-mode STREAM_MODE)
+              {cmdline,opts,options,expr} ...
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --no-header           Do not add header to the output.
+  -n N, --num-rows N    The number of rows of the produced CSV
+  -b N, --num-bytes N   The approximate number of bytes of the produced CSV
+  --stream-mode STREAM_MODE
+
+Schema definition:
+  {cmdline,opts,options,expr}
+                        Commands to define a CSV schema.
+$ feanor cmdline --help
+usage: feanor cmdline [-h] -c NAME EXPR [-d NAME EXPR] [OUTPUT-FILE]
 
 positional arguments:
   OUTPUT-FILE           The output file name.
@@ -25,11 +37,17 @@ optional arguments:
   -d NAME EXPR, --define NAME EXPR
                         Define a Feanor expression with the given name and
                         type.
-  --no-header           Do not add header to the output.
-  -n N, --num-rows N    The number of rows of the produced CSV
-  -b N, --num-bytes N   The approximate number of bytes of the produced CSV
-  --stream-mode STREAM_MODE
+$ feanor expr --help
+usage: feanor expr [-h] [-c NAMES] [OUTPUT-FILE] SCHEMA_EXPR
 
+positional arguments:
+  OUTPUT-FILE           The output file name.
+  SCHEMA_EXPR           The expression defining the schema
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c NAMES, --columns NAMES
+                        A CSV comma-separated header line.
 ```
 
 
@@ -45,9 +63,9 @@ Where `ARBITRARY_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
 For example the built-in `int` arbitrary type can be used in the following ways:
 
  - `#int` or `#int{}`: default configuration
- - `#int{"lowerbound": 10}`: do not generate numbers smaller than `10` (inclusive).
- - `#int{"upperbound": 10}`: do not generate numbers bigger than `10` (inclusive).
- - `#int{"lowerbound": 10, "upperbound":1000}`: generate numbers between `10` and `1000` (both inclusive).
+ - `#int{"min": 10}`: do not generate numbers smaller than `10` (inclusive).
+ - `#int{"max": 10}`: do not generate numbers bigger than `10` (inclusive).
+ - `#int{"min": 10, "max":1000}`: generate numbers between `10` and `1000` (both inclusive).
 
 
 ## Feanor DSL Expressions
@@ -101,7 +119,7 @@ For example `#int + #float` is an expression that evaluates to the sum of a rand
 Generate 10 rows with random integers:
 
 ```
-$ feanor -c a '#int' -c b '#int' -n 10
+$ feanor -n 10 cmdline -c a '#int' -c b '#int'
 a,b
 560419,658031
 655804,421309
@@ -118,7 +136,7 @@ a,b
 Generate about 1 kilobyte of rows with 2 random integers in them and write result to `/tmp/out.csv`:
 
 ```
-$ feanor -c a '#int' -c b '#int' -b 1024 /tmp/out.csv
+$ feanor -b 1024 cmdline -c a '#int' -c b '#int'  /tmp/out.csv
 $ ls -l /tmp/out.csv 
 -rw-rw-r-- 1 user user 1027 ago  3 00:17 /tmp/out.csv
 ```
@@ -128,24 +146,24 @@ $ ls -l /tmp/out.csv
 Generate 10 rows with random integers, the first column between `0` and `10`, the second column between `0` and `1000`:
 
 ```
-$ feanor -c a '#int{"lowerbound":0,"upperbound":10}' -c b '#int{"lowerbound":0,"upperbound":1000}' -n 10
+$ feanor -n 10 cmdline -c a '#int{"min":0, "max":10}' -c b '#int{"min": 0, "max":1000}'
 a,b
-5,943
-4,965
-8,962
-2,957
-8,521
-8,630
-4,535
-10,630
-7,139
-8,283
+3,233
+7,414
+9,873
+9,940
+6,759
+9,743
+2,17
+9,346
+6,559
+4,305
 ```
 
 Generate 10 rows with random integers and their sum:
 
 ```
-$ feanor -c a '#int' -c b '#int' -c c '@a+@b' -n 10
+$ feanor -n 10 cmdline -c a '#int' -c b '#int' -c c '@a+@b'
 a,b,c
 959911,805488,1765399
 963573,781193,1744766

@@ -8,11 +8,11 @@ class IntArbitrary(Arbitrary):
         super().__init__(random_funcs, 'int', config)
 
     def __call__(self):
-        return self._random_funcs.randint(self.config.lowerbound, self.config.upperbound)
+        return self._random_funcs.randint(self.config.min, self.config.max)
 
     @classmethod
     def default_config(cls):
-        return {'lowerbound': 0, 'upperbound': 1000000}
+        return {'min': 0, 'max': 1000000}
 
 
 class MultiArbitrary(Arbitrary):

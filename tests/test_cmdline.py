@@ -177,6 +177,17 @@ class TestCommandLine(unittest.TestCase):
         self.assertEqual(expected_transformer_B, schema.transformers[2])
 
     @patch('sys.exit')
+    def test_can_create_schema_with_columns_with_config(self, _):
+        schema, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '#int{"min":10}'])
+        self.assertEqual({'number_of_rows': 5}, size_dict)
+        self.assertEqual(('A',), schema.columns)
+        self.assertEqual(1, len(schema.arbitraries))
+        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={'min': 10}), schema.arbitraries[0])
+        self.assertEqual(1, len(schema.transformers))
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'], transformer=IdentityTransformer(1))
+        self.assertEqual(expected_transformer_A, schema.transformers[0])
+
+    @patch('sys.exit')
     def test_can_create_schema_with_third_column_sum_of_two_columns_using_expr(self, _):
         schema, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B,C', '(#int)=A . (#int)=B . (@A+@B)'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
