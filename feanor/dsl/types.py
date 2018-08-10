@@ -17,6 +17,9 @@ class Type(metaclass=ABCMeta):
             return False
         return self.name == other.name and self.num_outputs == other.num_outputs
 
+    def __hash__(self):
+        return hash((self.name, self.num_outputs))
+
 
 class SimpleType(Type):
     def __init__(self, name):
@@ -26,8 +29,15 @@ class SimpleType(Type):
 class CompositeType(Type):
     def __init__(self, types):
         self.types = tuple(flatten_types(types, self.__class__))
-        name = '{}({})'.format(self.__class__.__name__[:-4], ', '.join(ty.name for ty in self.types))
-        super().__init__(name, self.compute_num_outputs(self.types))
+        self._expanded_name = self.compute_name(self.types)
+        super().__init__(self.__class__.__name__[:-4], self.compute_num_outputs(self.types))
+
+    def __str__(self):
+        return self._expanded_name
+
+    @classmethod
+    def compute_name(cls, types):
+        return '{}({})'.format(cls.__name__[:-4], ', '.join(ty.name for ty in types))
 
     @classmethod
     @abstractmethod
@@ -37,6 +47,9 @@ class CompositeType(Type):
     def __eq__(self, other):
         return super().__eq__(other) and self.types == other.types
 
+    def __hash__(self):
+        return hash((super().__hash__(),) + self.types)
+
 
 class ParallelType(CompositeType):
 
@@ -45,10 +58,11 @@ class ParallelType(CompositeType):
         return sum(ty.num_outputs for ty in types)
 
 
-
 class ChoiceType(CompositeType):
     def __init__(self, types):
         super().__init__(types)
+        self.types = tuple(sorted(set(self.types), key=lambda type_: hash(type_)))
+        self._expanded_name = self.compute_name(self.types)
 
     @classmethod
     def compute_num_outputs(cls, types):
