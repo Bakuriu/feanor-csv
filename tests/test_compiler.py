@@ -91,6 +91,43 @@ class TestTypeInferencer(unittest.TestCase):
         self.assertEqual({'type': right_arg_type}, right_arg.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
+    def test_can_infer_type_of_nested_choice(self):
+        left_inner_choice = BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('float'))
+        right_inner_choice = BinaryOpNode.of('|', TypeNameNode.of('string'), TypeNameNode.of('float'))
+        tree = BinaryOpNode.of('|', left_inner_choice, right_inner_choice)
+        got = self.inferencer.infer(tree)
+        expected_config = {'left_config': {}, 'right_config': {}}
+        expected_type = ChoiceType([SimpleType('int', {}), SimpleType('float', {}), SimpleType('string'), SimpleType('float')], config=expected_config)
+        self.assertEqual(expected_type, got)
+        self.assertEqual(1, got.num_outputs)
+
+
+    def test_inferring_type_of_nested_choice_sets_info_value(self):
+        left_arg = TypeNameNode.of('int')
+        right_arg = TypeNameNode.of('float')
+        left_inner_choice = BinaryOpNode.of('|', left_arg, right_arg)
+        left_arg_2 = TypeNameNode.of('string')
+        right_arg_2 = TypeNameNode.of('float')
+        right_inner_choice = BinaryOpNode.of('|', left_arg_2, right_arg_2)
+        tree = BinaryOpNode.of('|', left_inner_choice, right_inner_choice)
+        expected_config = {'left_config': {}, 'right_config': {}}
+        left_arg_type = SimpleType('int', {})
+        right_arg_type = SimpleType('float', {})
+        left_arg_type_2 = SimpleType('string', {})
+        right_arg_type_2 = SimpleType('float', {})
+        left_inner_choice_type = ChoiceType([left_arg_type, right_arg_type], config=expected_config)
+        right_inner_choice_type = ChoiceType([left_arg_type_2, right_arg_type_2], config=expected_config)
+        expected_type = ChoiceType([left_arg_type, right_arg_type, left_arg_type_2, right_arg_type_2], config=expected_config)
+        inferencer = TypeInferencer()
+        inferencer.infer(tree)
+        self.assertEqual({'type': left_arg_type}, left_arg.info)
+        self.assertEqual({'type': right_arg_type}, right_arg.info)
+        self.assertEqual({'type': left_arg_type_2}, left_arg_2.info)
+        self.assertEqual({'type': right_arg_type_2}, right_arg_2.info)
+        self.assertEqual({'type': left_inner_choice_type}, left_inner_choice.info)
+        self.assertEqual({'type': right_inner_choice_type}, right_inner_choice.info)
+        self.assertEqual({'type': expected_type}, tree.info)
+
     def test_can_infer_type_of_concatenation(self):
         got = self.inferencer.infer(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
         expected_type = ParallelType([SimpleType('int', {}), SimpleType('float', {})])
