@@ -104,7 +104,7 @@ class TypeInferencer:
 
     @infer.register(TypeNameNode)
     def _(self, tree: TypeNameNode):
-        inferred_type = SimpleType(tree.children[0].name, tree.children[1].config)
+        inferred_type = SimpleType(tree.children[0].name)
         tree.info['type'] = inferred_type
         return inferred_type
 
@@ -160,15 +160,15 @@ class TypeInferencer:
         left_ty = self.infer(tree.children[1])
         right_ty = self.infer(tree.children[3])
         if tree.children[0].name == '+':
-            inferred_type = self._infer_merge(tree, left_ty, right_ty)
+            inferred_type = self._infer_merge(left_ty, right_ty)
         elif tree.children[0].name == '|':
-            inferred_type = self._infer_choice(tree, left_ty, right_ty)
+            inferred_type = self._infer_choice(left_ty, right_ty)
         else:
-            inferred_type = self._infer_concat(tree, left_ty, right_ty)
+            inferred_type = self._infer_concat(left_ty, right_ty)
         tree.info['type'] = inferred_type
         return inferred_type
 
-    def _infer_merge(self, merge: BinaryOpNode, left_ty, right_ty):
+    def _infer_merge(self, left_ty, right_ty):
         if isinstance(left_ty, ParallelType) and isinstance(right_ty, ParallelType):
             if left_ty.num_outputs != right_ty.num_outputs:
                 raise TypeError('Incompatible types for merge: {!r} and {!r}.'.format(left_ty, right_ty))
@@ -183,11 +183,10 @@ class TypeInferencer:
             raise TypeError('Cannot add incompatible types {} and {}'.format(left_ty, right_ty))
         return self.compatibility.get_upperbound(left_ty, right_ty)
 
-    def _infer_choice(self, choice: BinaryOpNode, left_ty, right_ty):
-        return ChoiceType([left_ty, right_ty],
-                          {'left_config': choice.children[2] or {}, 'right_config': choice.children[4] or {}})
+    def _infer_choice(self, left_ty, right_ty):
+        return ChoiceType([left_ty, right_ty])
 
-    def _infer_concat(self, parallel: BinaryOpNode, left_ty, right_ty):
+    def _infer_concat(self, left_ty, right_ty):
         return ParallelType([left_ty, right_ty])
 
 

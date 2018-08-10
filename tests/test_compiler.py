@@ -12,37 +12,37 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_a_type_name_node(self):
         got = self.inferencer.infer(TypeNameNode.of('int'))
-        self.assertEqual(SimpleType('int', {}), got)
+        self.assertEqual(SimpleType('int'), got)
 
     def test_inferring_type_of_type_name_node_sets_info_value(self):
         tree = TypeNameNode.of('int')
         self.inferencer.infer(tree)
-        self.assertEqual({'type': SimpleType('int', {})}, tree.info)
+        self.assertEqual({'type': SimpleType('int')}, tree.info)
 
     def test_can_infer_type_of_a_reference_node(self):
-        expected_type = SimpleType('int', {})
+        expected_type = SimpleType('int')
         inferencer = TypeInferencer(env={'a': expected_type})
         got = inferencer.infer(ReferenceNode.of('a'))
         self.assertEqual(expected_type, got)
 
     def test_inferring_type_of_reference_node_sets_info_value(self):
-        expected_type = SimpleType('int', {})
+        expected_type = SimpleType('int')
         tree = ReferenceNode.of('a')
         inferencer = TypeInferencer(env={'a': expected_type})
         inferencer.infer(tree)
         self.assertEqual({'type': expected_type}, tree.info)
 
     def test_can_infer_type_of_call(self):
-        expected_type = SimpleType('int', {})
-        arg_type = SimpleType('float', {})
+        expected_type = SimpleType('int')
+        arg_type = SimpleType('float')
         env = {'a': arg_type}
         inferencer = TypeInferencer(env=env, func_env={'func': ([arg_type], expected_type)})
         got = inferencer.infer(CallNode.of('func', [ReferenceNode.of('a')]))
         self.assertEqual(expected_type, got)
 
     def test_inferring_type_of_call_node_sets_info_value(self):
-        expected_type = SimpleType('int', {})
-        arg_type = SimpleType('float', {})
+        expected_type = SimpleType('int')
+        arg_type = SimpleType('float')
         env = {'a': arg_type}
         arg_node = ReferenceNode.of('a')
         tree = CallNode.of('func', [arg_node])
@@ -54,16 +54,16 @@ class TestTypeInferencer(unittest.TestCase):
     def test_can_infer_type_of_merge(self):
         inferencer = TypeInferencer(compatibility=SimpleCompatibility(upperbound=lambda x, y: y))
         got = inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
-        expected_type = SimpleType('float', {})
+        expected_type = SimpleType('float')
         self.assertEqual(expected_type, got)
 
     def test_inferring_type_of_merge_sets_info_value(self):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('+', left_arg, right_arg)
-        left_arg_type = SimpleType('int', {})
-        right_arg_type = SimpleType('float', {})
-        expected_type = SimpleType('float', {})
+        left_arg_type = SimpleType('int')
+        right_arg_type = SimpleType('float')
+        expected_type = SimpleType('float')
         inferencer = TypeInferencer(compatibility=SimpleCompatibility(lambda x, y: y))
         inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
@@ -72,8 +72,7 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_choice(self):
         got = self.inferencer.infer(BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('float')))
-        expected_config = {'left_config': {}, 'right_config': {}}
-        expected_type = ChoiceType([SimpleType('int', {}), SimpleType('float', {})], config=expected_config)
+        expected_type = ChoiceType([SimpleType('int'), SimpleType('float')])
         self.assertEqual(expected_type, got)
         self.assertEqual(1, got.num_outputs)
 
@@ -81,10 +80,9 @@ class TestTypeInferencer(unittest.TestCase):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('|', left_arg, right_arg)
-        expected_config = {'left_config': {}, 'right_config': {}}
-        left_arg_type = SimpleType('int', {})
-        right_arg_type = SimpleType('float', {})
-        expected_type = ChoiceType([left_arg_type, right_arg_type], config=expected_config)
+        left_arg_type = SimpleType('int')
+        right_arg_type = SimpleType('float')
+        expected_type = ChoiceType([left_arg_type, right_arg_type])
         inferencer = TypeInferencer(compatibility=lambda x, y: True)
         inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
@@ -96,11 +94,9 @@ class TestTypeInferencer(unittest.TestCase):
         right_inner_choice = BinaryOpNode.of('|', TypeNameNode.of('string'), TypeNameNode.of('float'))
         tree = BinaryOpNode.of('|', left_inner_choice, right_inner_choice)
         got = self.inferencer.infer(tree)
-        expected_config = {'left_config': {}, 'right_config': {}}
-        expected_type = ChoiceType([SimpleType('int', {}), SimpleType('float', {}), SimpleType('string'), SimpleType('float')], config=expected_config)
+        expected_type = ChoiceType([SimpleType('int'), SimpleType('float'), SimpleType('string'), SimpleType('float')])
         self.assertEqual(expected_type, got)
         self.assertEqual(1, got.num_outputs)
-
 
     def test_inferring_type_of_nested_choice_sets_info_value(self):
         left_arg = TypeNameNode.of('int')
@@ -110,14 +106,13 @@ class TestTypeInferencer(unittest.TestCase):
         right_arg_2 = TypeNameNode.of('float')
         right_inner_choice = BinaryOpNode.of('|', left_arg_2, right_arg_2)
         tree = BinaryOpNode.of('|', left_inner_choice, right_inner_choice)
-        expected_config = {'left_config': {}, 'right_config': {}}
-        left_arg_type = SimpleType('int', {})
-        right_arg_type = SimpleType('float', {})
-        left_arg_type_2 = SimpleType('string', {})
-        right_arg_type_2 = SimpleType('float', {})
-        left_inner_choice_type = ChoiceType([left_arg_type, right_arg_type], config=expected_config)
-        right_inner_choice_type = ChoiceType([left_arg_type_2, right_arg_type_2], config=expected_config)
-        expected_type = ChoiceType([left_arg_type, right_arg_type, left_arg_type_2, right_arg_type_2], config=expected_config)
+        left_arg_type = SimpleType('int')
+        right_arg_type = SimpleType('float')
+        left_arg_type_2 = SimpleType('string')
+        right_arg_type_2 = SimpleType('float')
+        left_inner_choice_type = ChoiceType([left_arg_type, right_arg_type])
+        right_inner_choice_type = ChoiceType([left_arg_type_2, right_arg_type_2])
+        expected_type = ChoiceType([left_arg_type, right_arg_type, left_arg_type_2, right_arg_type_2])
         inferencer = TypeInferencer()
         inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
@@ -130,7 +125,7 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_concatenation(self):
         got = self.inferencer.infer(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
-        expected_type = ParallelType([SimpleType('int', {}), SimpleType('float', {})])
+        expected_type = ParallelType([SimpleType('int'), SimpleType('float')])
         self.assertEqual(expected_type, got)
         self.assertEqual(2, got.num_outputs)
 
@@ -138,8 +133,8 @@ class TestTypeInferencer(unittest.TestCase):
         left_arg = TypeNameNode.of('int')
         right_arg = TypeNameNode.of('float')
         tree = BinaryOpNode.of('.', left_arg, right_arg)
-        left_arg_type = SimpleType('int', {})
-        right_arg_type = SimpleType('float', {})
+        left_arg_type = SimpleType('int')
+        right_arg_type = SimpleType('float')
         expected_type = ParallelType([left_arg_type, right_arg_type])
         inferencer = TypeInferencer(compatibility=lambda x, y: True)
         inferencer.infer(tree)
@@ -149,13 +144,13 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_assignment(self):
         got = self.inferencer.infer(AssignNode.of(TypeNameNode.of('int'), 'a'))
-        self.assertEqual(SimpleType('int', {}), got)
+        self.assertEqual(SimpleType('int'), got)
 
     def test_inferring_type_of_assignment_sets_info_value(self):
         expr = TypeNameNode.of('int')
         tree = AssignNode.of(expr, 'a')
         self.inferencer.infer(tree)
-        expected_type = SimpleType('int', {})
+        expected_type = SimpleType('int')
         self.assertEqual({'type': expected_type}, expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
 
@@ -250,19 +245,22 @@ class TestTypeInferencer(unittest.TestCase):
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
         self.compatibility = DefaultCompatibility()
+
     def test_identical_simple_types_are_compatible(self):
         self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), SimpleType('int')))
 
     def test_composite_types_of_same_class_with_one_identical_type_are_compatible(self):
         for cls in (ChoiceType, ParallelType):
-            self.assertTrue(self.compatibility.is_compatible(cls(2*[SimpleType('int')]), cls(2*[SimpleType('int')])))
+            self.assertTrue(
+                self.compatibility.is_compatible(cls(2 * [SimpleType('int')]), cls(2 * [SimpleType('int')])))
 
     def test_two_non_identical_simple_types_are_not_compatible(self):
         self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), SimpleType('float')))
 
     def test_composite_types_of_same_class_with_one_different_type_are_not_compatible(self):
         for cls in (ChoiceType, ParallelType):
-            self.assertFalse(self.compatibility.is_compatible(cls([SimpleType('int')]*2), cls([SimpleType('float')]*2)))
+            self.assertFalse(
+                self.compatibility.is_compatible(cls([SimpleType('int')] * 2), cls([SimpleType('float')] * 2)))
 
     def test_composite_types_of_different_class_with_one_identical_type_are_not_compatible(self):
         arg = SimpleType('int')
@@ -273,7 +271,7 @@ class TestDefaultCompatibility(unittest.TestCase):
     def test_composite_types_with_multiple_incompatible_types_are_not_compatible(self):
         for cls in (ChoiceType, ParallelType):
             self.assertFalse(self.compatibility.is_compatible(cls([SimpleType('int'), SimpleType('string')]),
-                                                   cls([SimpleType('int'), SimpleType('not-string')])))
+                                                              cls([SimpleType('int'), SimpleType('not-string')])))
 
 
 class TestCompiler(unittest.TestCase):
@@ -293,7 +291,7 @@ class TestCompiler(unittest.TestCase):
         tree = TypeNameNode.of('int')
         self.compiler.compile(tree)
         expected_info = {
-            'type': SimpleType('int', {}),
+            'type': SimpleType('int'),
             'assigned_name': None,
             'in_names': ['arbitrary#0'],
             'out_names': ['arbitrary#0'],
@@ -313,7 +311,7 @@ class TestCompiler(unittest.TestCase):
         tree = AssignNode.of(TypeNameNode.of('int'), 'a')
         self.compiler.compile(tree)
         expected_info = {
-            'type': SimpleType('int', {}),
+            'type': SimpleType('int'),
             'assigned_name': 'a',
             'in_names': ['arbitrary#0'],
             'out_names': ['a'],
@@ -337,7 +335,7 @@ class TestCompiler(unittest.TestCase):
         tree = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})]), 'assigned_name': None,
+            'type': ParallelType([SimpleType('int'), SimpleType('int')]), 'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['arbitrary#0', 'arbitrary#1'],
         }
@@ -359,8 +357,7 @@ class TestCompiler(unittest.TestCase):
         tree = BinaryOpNode.of('|', TypeNameNode.of('int'), TypeNameNode.of('int'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': ChoiceType([SimpleType('int', {}), SimpleType('int', {})],
-                               config={'left_config': {}, 'right_config': {}}), 'assigned_name': None,
+            'type': ChoiceType([SimpleType('int'), SimpleType('int')]), 'assigned_name': None,
             'out_names': ['transformer#0'],
             'in_names': ['arbitrary#0', 'arbitrary#1'],
         }
@@ -383,7 +380,7 @@ class TestCompiler(unittest.TestCase):
         tree = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': SimpleType('int', {}),
+            'type': SimpleType('int'),
             'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['transformer#0#0'],
@@ -412,7 +409,7 @@ class TestCompiler(unittest.TestCase):
         tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), ReferenceNode.of('a'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {})]),
+            'type': ParallelType([SimpleType('int'), SimpleType('int')]),
             'in_names': ['a', 'arbitrary#0'],
             'out_names': ['a', 'arbitrary#0'],
             'assigned_name': None,
@@ -455,7 +452,7 @@ class TestCompiler(unittest.TestCase):
         )
         self.compiler.compile(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('int', {})]),
+            'type': ParallelType([SimpleType('int'), SimpleType('int'), SimpleType('int')]),
             'assigned_name': None,
             'in_names': ['a', 'arbitrary#0', 'arbitrary#0'],
             'out_names': ['a', 'arbitrary#0', 'arbitrary#0'],
@@ -478,7 +475,7 @@ class TestCompiler(unittest.TestCase):
         tree = AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a')
         self.compiler.compile(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})]),
+            'type': ParallelType([SimpleType('int'), SimpleType('float')]),
             'assigned_name': 'a',
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['a#0', 'a#1'],
@@ -500,7 +497,7 @@ class TestCompiler(unittest.TestCase):
         tree = ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0)
         self.compiler.compile(tree)
         expected_info = {
-            'type': SimpleType('int', {}),
+            'type': SimpleType('int'),
             'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['arbitrary#0'],
@@ -521,7 +518,7 @@ class TestCompiler(unittest.TestCase):
         tree = AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b')
         self.compiler.compile(tree)
         expected_info = {
-            'type': SimpleType('int', {}),
+            'type': SimpleType('int'),
             'assigned_name': 'b',
             'in_names': ['a'],
             'out_names': ['b'],
@@ -543,7 +540,7 @@ class TestCompiler(unittest.TestCase):
         tree = AssignNode.of(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'), 'c')
         self.compiler.compile(tree)
         expected_info = {
-            'type': SimpleType('int', {}),
+            'type': SimpleType('int'),
             'assigned_name': 'c',
             'in_names': ['b'],
             'out_names': ['c'],
@@ -568,7 +565,7 @@ class TestCompiler(unittest.TestCase):
         tree = BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('float', {})]),
+            'type': ParallelType([SimpleType('int'), SimpleType('float')]),
             'assigned_name': None,
             'in_names': ['a', 'arbitrary#1'],
             'out_names': ['a', 'arbitrary#1'],
@@ -596,7 +593,7 @@ class TestCompiler(unittest.TestCase):
             BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': ParallelType([SimpleType('int', {}), SimpleType('int', {}), SimpleType('float', {})]),
+            'type': ParallelType([SimpleType('int'), SimpleType('int'), SimpleType('float')]),
             'assigned_name': None,
             'in_names': ['a#0', 'a#1', 'arbitrary#2'],
             'out_names': ['a#0', 'a#1', 'arbitrary#2'],
@@ -609,8 +606,10 @@ class TestCompiler(unittest.TestCase):
         schema.add_column('FLOAT')
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'], transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'],
+                               transformer=IdentityTransformer(1))
 
         self.compiler.feed_expression(TypeNameNode.of('int'))
         self.compiler.feed_expression(TypeNameNode.of('float'))
@@ -623,8 +622,10 @@ class TestCompiler(unittest.TestCase):
         schema.add_column('FLOAT')
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'], transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'],
+                               transformer=IdentityTransformer(1))
 
         self.compiler.feed_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')))
         got = self.compiler.complete_compilation(column_names=['INTERO', 'FLOAT'])
@@ -635,9 +636,11 @@ class TestCompiler(unittest.TestCase):
         schema.add_column('a')
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
 
-        self.compiler.feed_expression(BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a')))
+        self.compiler.feed_expression(
+            BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a')))
         got = self.compiler.complete_compilation(column_names=['a'])
         self.assertEqual(schema, got)
 
@@ -647,9 +650,13 @@ class TestCompiler(unittest.TestCase):
         schema.add_arbitrary('arbitrary#0', type='int')
         schema.add_arbitrary('arbitrary#1', type='int')
         schema.add_arbitrary('arbitrary#2', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'], transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0', 'a'], outputs=['transformer#1#0'], transformer=MergeTransformer(2))
+        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0', 'a'], outputs=['transformer#1#0'],
+                               transformer=MergeTransformer(2))
 
-        self.compiler.feed_expression(BinaryOpNode.of('.', BinaryOpNode.of('+', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('int'), 'a')), TypeNameNode.of('float')))
+        self.compiler.feed_expression(BinaryOpNode.of('.', BinaryOpNode.of('+', TypeNameNode.of('int'),
+                                                                           AssignNode.of(TypeNameNode.of('int'), 'a')),
+                                                      TypeNameNode.of('float')))
         got = self.compiler.complete_compilation(column_names=['transformer#1#0'])
         self.assertEqual(schema, got)

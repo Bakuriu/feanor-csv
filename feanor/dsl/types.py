@@ -3,10 +3,9 @@ from itertools import chain
 
 
 class Type(metaclass=ABCMeta):
-    def __init__(self, name, num_outputs=1, config=None):
+    def __init__(self, name, num_outputs=1):
         self.name = name
         self.num_outputs = num_outputs
-        self.config = config or {}
 
     def __str__(self):
         return self.name
@@ -16,21 +15,19 @@ class Type(metaclass=ABCMeta):
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
-        return self.name == other.name and self.num_outputs == other.num_outputs and self.config == other.config
+        return self.name == other.name and self.num_outputs == other.num_outputs
 
 
 class SimpleType(Type):
-    def __init__(self, name, config=None):
-        super().__init__(name, config=config)
+    def __init__(self, name):
+        super().__init__(name)
 
 
 class CompositeType(Type):
-    def __init__(self, types, config=None, do_flatten_types=True):
-        if do_flatten_types:
-            types = flatten_types(types, self.__class__)
-        self.types = tuple(types)
+    def __init__(self, types):
+        self.types = tuple(flatten_types(types, self.__class__))
         name = '{}({})'.format(self.__class__.__name__[:-4], ', '.join(ty.name for ty in self.types))
-        super().__init__(name, self.compute_num_outputs(self.types), config=config)
+        super().__init__(name, self.compute_num_outputs(self.types))
 
     @classmethod
     @abstractmethod
@@ -50,8 +47,8 @@ class ParallelType(CompositeType):
 
 
 class ChoiceType(CompositeType):
-    def __init__(self, types, config=None):
-        super().__init__(types, config, do_flatten_types=True)
+    def __init__(self, types):
+        super().__init__(types)
 
     @classmethod
     def compute_num_outputs(cls, types):
