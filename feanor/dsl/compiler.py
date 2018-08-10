@@ -1,43 +1,102 @@
 from itertools import starmap
 from typing import List
 
-from ..util import overloaded
 from .ast import *
 from .types import *
 from ..schema import *
+from ..util import overloaded
 
-__all__ = ['default_compatibility', 'TypeInferencer', 'Compiler']
+__all__ = ['SimpleCompatibility', 'DefaultCompatibility', 'TypeInferencer', 'Compiler']
 
 
-def default_compatibility(x, y):
-    """The default compatibility function for the type inferencer.
+class Compatibility(metaclass=ABCMeta):
+    @abstractmethod
+    def get_upperbound(self, first_type: Type, second_type: Type) -> Type:
+        raise NotImplementedError
 
-    The default compatibility is an equivalence relation defined by the following rules:
+    def is_compatible(self, first_type: Type, second_type: Type) -> bool:
+        try:
+            _ = self.get_upperbound(first_type, second_type)
+        except TypeError:
+            return False
+        else:
+            return True
 
-     - two `SimpleType`s are compatible if they are identical (same name and config).
-     - two `CompositeType`s are compatible if:
-       + they are of the same class
-       + they have the same configuration
-       + they have the same number of outputs
-       + all their types "children" are default-compatible
 
-    """
-    if isinstance(x, SimpleType) and isinstance(y, SimpleType):
-        return x == y
-    elif isinstance(x, CompositeType) and isinstance(y, CompositeType):
-        return (
-                x.__class__ == y.__class__
-                and x.num_outputs == y.num_outputs
-                and x.config == y.config
-                and all(default_compatibility(a, b) for a, b in zip(x.types, y.types))
-        )
+
+class SimpleCompatibility(Compatibility):
+
+    def __init__(self, upperbound):
+        self._get_simple_type_upperbound = upperbound
+
+    def get_upperbound(self, first_type: Type, second_type: Type) -> Type:
+        if first_type == second_type:
+            return first_type
+
+        first_simple = isinstance(first_type, SimpleType)
+        second_simple = isinstance(second_type, SimpleType)
+
+        if first_simple and second_simple:
+            return self._get_simple_type_upperbound(first_type, second_type)
+
+        if not first_simple and not second_simple:
+            return self._get_composites_upperbound(first_type, second_type)
+
+        if second_simple and not first_simple:
+            # avoid symmetric cases.
+            return self.get_upperbound(second_type, first_type)
+
+        return self._get_simple_and_composite_upperbound(first_type, second_type)
+
+    def _get_simple_and_composite_upperbound(self, first_type, second_type):
+        if second_type.num_outputs != 1:
+            raise TypeError(f'type {first_type} is incompatible with type {second_type}'
+                            f' with {second_type.num_outputs} outputs')
+        if isinstance(second_type, ParallelType):
+            return self.get_upperbound(first_type, second_type.types[0])
+
+        if isinstance(second_type, ChoiceType):
+            return self._choice_upperbound(second_type, first_type)
+        raise TypeError(f'Unknown type {second_type}')
+
+    def _get_composites_upperbound(self, first_type, second_type):
+        if first_type.num_outputs != second_type.num_outputs:
+            raise TypeError(f'type {first_type} is incompatible with type {second_type}')
+
+        if isinstance(first_type, ParallelType) and isinstance(second_type, ParallelType):
+            # both Parallel types
+            upper_bounds = [self.get_upperbound(f_ty, s_ty) for f_ty, s_ty in
+                            zip(first_type.types, second_type.types)]
+            return ParallelType(upper_bounds)
+
+        if isinstance(first_type, ChoiceType):
+            return self._choice_upperbound(first_type, second_type)
+
+        if isinstance(second_type, ChoiceType):
+            return self._choice_upperbound(second_type, first_type)
+
+        raise TypeError(f'Unknown types {first_type} and/or {second_type}')
+
+    def _choice_upperbound(self, main: ChoiceType, other: Type) -> ChoiceType:
+        return ChoiceType([self.get_upperbound(t, other) for t in main.types])
+
+
+class DefaultCompatibility(SimpleCompatibility):
+
+    def __init__(self):
+        super().__init__(upperbound=self._simple_type_upperbound)
+
+    def _simple_type_upperbound(self, first_type, second_type):
+        if first_type == second_type:
+            return first_type
+        raise TypeError(f'type {first_type} is incompatible with type {second_type}')
 
 
 class TypeInferencer:
-    def __init__(self, env=None, func_env=None, compatible=default_compatibility):
+    def __init__(self, env=None, func_env=None, compatibility=None):
         self.env = env if env is not None else {}
         self.func_env = func_env if func_env is not None else {}
-        self.compatible = compatible
+        self.compatibility = compatibility or DefaultCompatibility()
 
     @overloaded
     def infer(self, tree: ExprNode) -> Type:
@@ -90,7 +149,7 @@ class TypeInferencer:
                 f'Incorrect number of arguments to function {func_name}: '
                 f'{len(inferred_arg_types)} instead of {len(expected_arg_types)}')
         for i, (arg_type, expected_arg_type) in enumerate(zip(inferred_arg_types, expected_arg_types)):
-            if not self.compatible(arg_type, expected_arg_type):
+            if not self.compatibility.is_compatible(arg_type, expected_arg_type):
                 raise TypeError(
                     f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
         tree.info['type'] = inferred_type
@@ -114,15 +173,15 @@ class TypeInferencer:
             if left_ty.num_outputs != right_ty.num_outputs:
                 raise TypeError('Incompatible types for merge: {!r} and {!r}.'.format(left_ty, right_ty))
             zipped_types = list(zip(left_ty.types, right_ty.types))
-            if not all(starmap(self.compatible, zipped_types)):
+            if not all(starmap(self.compatibility.is_compatible, zipped_types)):
                 raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
-            new_inner_types = list(map(MergeType, zipped_types))
+            new_inner_types = list(starmap(self.compatibility.get_upperbound, zipped_types))
             return ParallelType(new_inner_types)
         elif isinstance(left_ty, ParallelType) ^ isinstance(right_ty, ParallelType):
             raise TypeError('Incompatible types for merge: {!r} and {!r}'.format(left_ty, right_ty))
-        if not self.compatible(left_ty, right_ty):
+        if not self.compatibility.is_compatible(left_ty, right_ty):
             raise TypeError('Cannot add incompatible types {} and {}'.format(left_ty, right_ty))
-        return MergeType([left_ty, right_ty])
+        return self.compatibility.get_upperbound(left_ty, right_ty)
 
     def _infer_choice(self, choice: BinaryOpNode, left_ty, right_ty):
         return ChoiceType([left_ty, right_ty],
@@ -133,12 +192,12 @@ class TypeInferencer:
 
 
 class Compiler:
-    def __init__(self, env=None, func_env=None, compatibility=default_compatibility, show_header=True):
-        self.compatibility = compatibility
+    def __init__(self, env=None, func_env=None, compatibility=None, show_header=True):
+        self.compatibility = compatibility or DefaultCompatibility()
         self.func_env = func_env if func_env is not None else {}
         self.env = env if env is not None else {}
         self.typing_env = self.env.setdefault('::types::', {})
-        self._inferencer = TypeInferencer(env=self.typing_env, func_env=self.func_env, compatible=self.compatibility)
+        self._inferencer = TypeInferencer(env=self.typing_env, func_env=self.func_env, compatibility=self.compatibility)
         self._schema = Schema(show_header=show_header)
         self._cur_arbitrary_id = 0
         self._cur_transformer_id = 0
@@ -152,7 +211,7 @@ class Compiler:
         self._inferencer.infer(expr)
         self._compiled_expressions.append(expr.visit(self.visitor))
 
-    def complete_compilation(self, *, column_names: List[str]=None) -> Schema:
+    def complete_compilation(self, *, column_names: List[str] = None) -> Schema:
         identity = IdentityTransformer(1)
         out_names = list(chain.from_iterable(res.info['out_names'] for res in self._compiled_expressions))
         if column_names is None:
@@ -173,7 +232,7 @@ class Compiler:
                         self._new_transformer_name(),
                         inputs=[name], outputs=[col_name],
                         transformer=identity
-                        )
+                    )
 
         return self._schema
 

@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from feanor.main import make_schema
-from feanor.schema import ProjectionTransformer, IdentityTransformer
+from feanor.schema import IdentityTransformer
 
 
 class TestMakeSchema(unittest.TestCase):

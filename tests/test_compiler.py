@@ -52,9 +52,9 @@ class TestTypeInferencer(unittest.TestCase):
         self.assertEqual({'type': expected_type}, tree.info)
 
     def test_can_infer_type_of_merge(self):
-        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatibility=SimpleCompatibility(upperbound=lambda x, y: y))
         got = inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
-        expected_type = MergeType([SimpleType('int', {}), SimpleType('float', {})])
+        expected_type = SimpleType('float', {})
         self.assertEqual(expected_type, got)
 
     def test_inferring_type_of_merge_sets_info_value(self):
@@ -63,8 +63,8 @@ class TestTypeInferencer(unittest.TestCase):
         tree = BinaryOpNode.of('+', left_arg, right_arg)
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
-        expected_type = MergeType([left_arg_type, right_arg_type])
-        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        expected_type = SimpleType('float', {})
+        inferencer = TypeInferencer(compatibility=SimpleCompatibility(lambda x, y: y))
         inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
@@ -85,7 +85,7 @@ class TestTypeInferencer(unittest.TestCase):
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
         expected_type = ChoiceType([left_arg_type, right_arg_type], config=expected_config)
-        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatibility=lambda x, y: True)
         inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
@@ -104,7 +104,7 @@ class TestTypeInferencer(unittest.TestCase):
         left_arg_type = SimpleType('int', {})
         right_arg_type = SimpleType('float', {})
         expected_type = ParallelType([left_arg_type, right_arg_type])
-        inferencer = TypeInferencer(compatible=lambda x, y: True)
+        inferencer = TypeInferencer(compatibility=lambda x, y: True)
         inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
@@ -167,9 +167,9 @@ class TestTypeInferencer(unittest.TestCase):
         }
         left_expr = ReferenceNode.of('a')
         right_expr = ReferenceNode.of('b')
-        inferencer = TypeInferencer(compatible=lambda x, y: True, env=env)
+        inferencer = TypeInferencer(compatibility=SimpleCompatibility(lambda x, y: x), env=env)
         got = inferencer.infer(BinaryOpNode.of('+', left_expr, right_expr))
-        expected_type = ParallelType(map(MergeType, zip(left_inner_types, right_inner_types)))
+        expected_type = ParallelType([SimpleType('int'), SimpleType('float')])
         self.assertEqual(expected_type, got)
         self.assertEqual(2, expected_type.num_outputs)
 
@@ -185,9 +185,9 @@ class TestTypeInferencer(unittest.TestCase):
         left_expr = ReferenceNode.of('a')
         right_expr = ReferenceNode.of('b')
         tree = BinaryOpNode.of('+', left_expr, right_expr)
-        inferencer = TypeInferencer(compatible=lambda x, y: True, env=env)
-        got = inferencer.infer(tree)
-        expected_type = ParallelType(map(MergeType, zip(left_inner_types, right_inner_types)))
+        inferencer = TypeInferencer(compatibility=SimpleCompatibility(lambda x, y: x), env=env)
+        inferencer.infer(tree)
+        expected_type = ParallelType([SimpleType('int'), SimpleType('float')])
         self.assertEqual({'type': left_ty}, left_expr.info)
         self.assertEqual({'type': right_ty}, right_expr.info)
         self.assertEqual({'type': expected_type}, tree.info)
@@ -211,29 +211,31 @@ class TestTypeInferencer(unittest.TestCase):
 
 
 class TestDefaultCompatibility(unittest.TestCase):
+    def setUp(self):
+        self.compatibility = DefaultCompatibility()
     def test_identical_simple_types_are_compatible(self):
-        self.assertTrue(default_compatibility(SimpleType('int'), SimpleType('int')))
+        self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), SimpleType('int')))
 
     def test_composite_types_of_same_class_with_one_identical_type_are_compatible(self):
-        for cls in (ChoiceType, MergeType, ParallelType):
-            self.assertTrue(default_compatibility(cls([SimpleType('int')]), cls([SimpleType('int')])))
+        for cls in (ChoiceType, ParallelType):
+            self.assertTrue(self.compatibility.is_compatible(cls(2*[SimpleType('int')]), cls(2*[SimpleType('int')])))
 
     def test_two_non_identical_simple_types_are_not_compatible(self):
-        self.assertFalse(default_compatibility(SimpleType('int'), SimpleType('float')))
+        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), SimpleType('float')))
 
     def test_composite_types_of_same_class_with_one_different_type_are_not_compatible(self):
-        for cls in (ChoiceType, MergeType, ParallelType):
-            self.assertFalse(default_compatibility(cls([SimpleType('int')]), cls([SimpleType('float')])))
+        for cls in (ChoiceType, ParallelType):
+            self.assertFalse(self.compatibility.is_compatible(cls([SimpleType('int')]*2), cls([SimpleType('float')]*2)))
 
     def test_composite_types_of_different_class_with_one_identical_type_are_not_compatible(self):
         arg = SimpleType('int')
-        for first in [ChoiceType, MergeType, ParallelType]:
-            for second in [sec for sec in (ChoiceType, MergeType, ParallelType) if sec != first]:
-                self.assertFalse(default_compatibility(first([arg]), second([arg])))
+        for first in [ChoiceType, ParallelType]:
+            for second in [sec for sec in (ChoiceType, ParallelType) if sec != first]:
+                self.assertFalse(self.compatibility.is_compatible(first([arg, arg]), second([arg, arg])))
 
     def test_composite_types_with_multiple_incompatible_types_are_not_compatible(self):
-        for cls in (ChoiceType, MergeType, ParallelType):
-            self.assertFalse(default_compatibility(cls([SimpleType('int'), SimpleType('string')]),
+        for cls in (ChoiceType, ParallelType):
+            self.assertFalse(self.compatibility.is_compatible(cls([SimpleType('int'), SimpleType('string')]),
                                                    cls([SimpleType('int'), SimpleType('not-string')])))
 
 
@@ -344,7 +346,7 @@ class TestCompiler(unittest.TestCase):
         tree = BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('int'))
         self.compiler.compile(tree)
         expected_info = {
-            'type': MergeType([SimpleType('int', {}), SimpleType('int', {})]),
+            'type': SimpleType('int', {}),
             'assigned_name': None,
             'in_names': ['arbitrary#0', 'arbitrary#1'],
             'out_names': ['transformer#0#0'],

@@ -25,8 +25,10 @@ class SimpleType(Type):
 
 
 class CompositeType(Type):
-    def __init__(self, types, config=None):
-        self.types = tuple(flatten_types(types, self.__class__))
+    def __init__(self, types, config=None, do_flatten_types=True):
+        if do_flatten_types:
+            types = flatten_types(types, self.__class__)
+        self.types = tuple(types)
         name = '{}({})'.format(self.__class__.__name__[:-4], ', '.join(ty.name for ty in self.types))
         super().__init__(name, self.compute_num_outputs(self.types), config=config)
 
@@ -46,20 +48,10 @@ class ParallelType(CompositeType):
         return sum(ty.num_outputs for ty in types)
 
 
-class MergeType(CompositeType):
-
-    @classmethod
-    def compute_num_outputs(cls, types):
-        tys_num_outputs = tuple(ty.num_outputs for ty in types)
-        if len(set(tys_num_outputs)) != 1:
-            different_outputs = ', '.join(map(str, tys_num_outputs))
-            raise ValueError('Types must all have same number of outputs. Got {} instead.'.format(different_outputs))
-        return tys_num_outputs[0]
-
 
 class ChoiceType(CompositeType):
     def __init__(self, types, config=None):
-        super().__init__(types, config)
+        super().__init__(types, config, do_flatten_types=True)
 
     @classmethod
     def compute_num_outputs(cls, types):
