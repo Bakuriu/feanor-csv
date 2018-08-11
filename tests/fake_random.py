@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import wraps
 
 
 class FakeRandom:
@@ -15,8 +16,12 @@ class FakeRandom:
     def register_missing(self, name, value):
         self._calls_settings[name]['missing'] = self._value_or_function(value)
 
+    def register_signature(self, name, param_names):
+        self._calls_settings[name]['signature'] = tuple(param_names)
+
     def __getattr__(self, name):
         if name in self._calls_settings:
+            @wraps(eval('lambda {}: None'.format(', '.join(self._calls_settings[name].get('signature', [])))))
             def fake_call(*args):
                 calls_dict = self._calls_settings.get(name)
                 values = calls_dict.get(args)
@@ -45,6 +50,8 @@ class FakeRandom:
                     rand.register_default(name, result)
                 elif args == 'missing':
                     rand.register_missing(name, result)
+                elif args == 'signature':
+                    rand.register_signature(name, result)
                 else:
                     rand.register(name, args, result)
         return rand

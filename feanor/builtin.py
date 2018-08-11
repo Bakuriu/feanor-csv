@@ -1,6 +1,12 @@
+import inspect
 from itertools import cycle
 
 from .arbitrary import Arbitrary
+
+__all__ = [
+    'Arbitrary', 'IntArbitrary', 'FloatArbitrary', 'MultiArbitrary', 'FixedArbitrary', 'CyclingArbitrary',
+    'RepeaterArbitrary'
+]
 
 
 class IntArbitrary(Arbitrary):
@@ -13,6 +19,60 @@ class IntArbitrary(Arbitrary):
     @classmethod
     def default_config(cls):
         return {'min': 0, 'max': 1000000}
+
+
+class FloatArbitrary(Arbitrary):
+    def __init__(self, random_funcs, config=None):
+        super().__init__(random_funcs, 'float', config)
+        available_functions = [
+            'random',
+            'uniform',
+            'triangular',
+            'betavariate',
+            'expovariate',
+            'gammavariate',
+            'gauss',
+            'lognormvariate',
+            'normalvariate',
+            'normalvariate',
+            'vonmisesvariate',
+            'paretovariate',
+            'weibullvariate',
+        ]
+        distribution = getattr(self.config, 'distribution')
+        if not distribution in available_functions:
+            raise ValueError(f'Invalid distribution name: {distribution}')
+        self._distribution = getattr(self._random_funcs, distribution)
+        self._kwargs = self._get_distribution_kwargs(distribution)
+
+    def _get_distribution_kwargs(self, distribution):
+        try:
+            sig = inspect.signature(getattr(self._random_funcs, distribution))
+        except ValueError:
+            return {}
+        else:
+            used_names = [param.name for param in sig.parameters.values()]
+            renamed_params = {
+                'a': 'min',
+                'b': 'max',
+                'lambd': 'lambda',
+            }
+            config_names = ((renamed_params.get(name, name),name) for name in used_names)
+            return {param_name: getattr(self.config, config_name) for config_name, param_name in config_names}
+
+    def __call__(self):
+        return self._distribution(**self._kwargs)
+
+    @classmethod
+    def default_config(cls):
+        return {
+            'min': 0, 'max': 1000000.0, 'distribution': 'uniform', 'alpha': 0.0, 'beta': 1.0, 'lambda': 1.0, 'mu': 1.0,
+            'sigma': 1.0, 'kappa': 1.0
+        }
+
+    @classmethod
+    def required_config_keys(cls):
+        return {'distribution'}
 
 
 class MultiArbitrary(Arbitrary):

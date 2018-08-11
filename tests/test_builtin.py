@@ -1,15 +1,15 @@
 import unittest
+import random
 from itertools import cycle, islice
 
 from fake_random import FakeRandom
-from feanor.builtin import IntArbitrary, MultiArbitrary, FixedArbitrary, CyclingArbitrary, RepeaterArbitrary
+from feanor.builtin import *
 
 
 class TestIntArbitrary(unittest.TestCase):
     def setUp(self):
         values = list(reversed(range(100)))
         config = {
-            'random': {(): [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]},
             'randint': {'default': lambda a, b: values.pop() % b}
         }
         self.rand = FakeRandom.from_dict(config)
@@ -36,6 +36,40 @@ class TestIntArbitrary(unittest.TestCase):
 
     def test_can_specify_bounds(self):
         arbitrary = IntArbitrary(random_funcs=self.rand, config={'min': 10, 'max': 11})
+        self.assertEqual(10, arbitrary.config.min)
+        self.assertEqual(11, arbitrary.config.max)
+
+class TestFloatArbitrary(unittest.TestCase):
+    def setUp(self):
+        values = list(reversed(range(100)))
+        config = {
+            'random': {(): [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'signature': []},
+            'uniform': {'default': lambda min, max: values.pop() % max, 'signature': ['min', 'max']}
+        }
+        self.rand = FakeRandom.from_dict(config)
+
+    def test_can_generate_a_random_number(self):
+        arbitrary = FloatArbitrary(random_funcs=self.rand, config={'distribution': 'random'})
+        self.assertIsInstance(arbitrary(), float)
+
+    def test_generates_different_numbers(self):
+        arbitrary = FloatArbitrary(random_funcs=self.rand, config={'distribution': 'random'})
+        a = arbitrary()
+        b = arbitrary()
+        self.assertIsInstance(a, float)
+        self.assertIsInstance(b, float)
+        self.assertNotEqual(a, b)
+
+    def test_can_specify_min(self):
+        arbitrary = FloatArbitrary(random_funcs=self.rand, config={'min': 10, 'distribution': 'uniform'})
+        self.assertEqual(10, arbitrary.config.min)
+
+    def test_can_specify_max(self):
+        arbitrary = FloatArbitrary(random_funcs=self.rand, config={'max': 10, 'distribution': 'uniform'})
+        self.assertEqual(10, arbitrary.config.max)
+
+    def test_can_specify_bounds(self):
+        arbitrary = FloatArbitrary(random_funcs=self.rand, config={'min': 10, 'max': 11, 'distribution': 'uniform'})
         self.assertEqual(10, arbitrary.config.min)
         self.assertEqual(11, arbitrary.config.max)
 
