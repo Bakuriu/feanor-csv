@@ -53,6 +53,10 @@ class RepeaterArbitrary(Arbitrary):
 
         return self._last_value
 
+    @classmethod
+    def required_config_keys(cls):
+        return {'num_repeats'}
+
 
 class FixedArbitrary(Arbitrary):
     def __init__(self, random_funcs, config):
@@ -61,11 +65,19 @@ class FixedArbitrary(Arbitrary):
     def __call__(self):
         return self.config.value
 
+    @classmethod
+    def required_config_keys(cls):
+        return {'value'}
+
 
 class CyclingArbitrary(Arbitrary):
     def __init__(self, random_funcs, config):
-        super().__init__(random_funcs, 'fixed', config)
+        super().__init__(random_funcs, 'cycle', config)
         self._values = cycle(self.config.values)
 
     def __call__(self):
         return next(self._values)
+
+    @classmethod
+    def required_config_keys(cls):
+        return {'values'}

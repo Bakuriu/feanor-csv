@@ -1,9 +1,8 @@
-import re
-import ast
-from types import SimpleNamespace
 from abc import ABCMeta, abstractmethod
+from types import SimpleNamespace
+from typing import Set
 
-from .dsl.ast import ParsingError
+from .util import to_string_list
 
 
 class Arbitrary(metaclass=ABCMeta):
@@ -12,7 +11,11 @@ class Arbitrary(metaclass=ABCMeta):
         self._type_name = type_name
         conf = self.default_config()
         conf.update(config or {})
-        self._config = SimpleNamespace(**conf)
+        if self.required_config_keys() <= conf.keys():
+            self._config = SimpleNamespace(**conf)
+        else:
+            raise ValueError('Type {} requires at least the following configuration values: {}'
+                             .format(self._type_name, to_string_list(self.required_config_keys())))
 
     @property
     def type(self):
@@ -26,50 +29,10 @@ class Arbitrary(metaclass=ABCMeta):
     def default_config(cls):
         return {}
 
+    @classmethod
+    def required_config_keys(cls) -> Set[str]:
+        return set()
+
     @abstractmethod
     def __call__(self):
         raise NotImplementedError
-
-
-ARBITRARY_TYPE_REGEX = re.compile(r'(?P<type_name>\w+)(?P<config>{.*\})?$', re.DOTALL)
-
-
-def parse_type(arbitrary_type):
-    """Parse the type of an Arbitrary.
-
-    An arbitrary type can have the following two forms:
-
-      - a plain type name. E.g. 'int', or 'tax_code'.
-      - a type name with a configuration attached. E.g. 'int{"min":10}'.
-
-    The type name has to match the `\w+` regex, while the optional configuration must be a valid python
-    `dict` literal.
-
-    Not passing any configuration is equivalent to passing a configuration of `{}`.
-
-    Examples
-    ========
-
-        >>> parse_type('int')
-        ('int', {})
-        >>> parse_type('int{}')
-        ('int', {})
-        >>> parse_type('int{"min": 10}')
-        ('int', {'min': 10})
-        >>> parse_type('int{"min": 10, "max": 20}')
-        ('int', {'min': 10, 'max': 20})
-
-    """
-    match = ARBITRARY_TYPE_REGEX.match(arbitrary_type)
-    if not match:
-        raise ParsingError('Expression does not describe an arbitrary type:\n{!r}\ndoes not match regex: "(?s)\w+{{.*\}}$"'.format(arbitrary_type))
-
-    type_name, config = match.groups()
-    if config is not None:
-        try:
-            config = ast.literal_eval(config)
-        except SyntaxError:
-            raise ParsingError(f'Expression is not a valid dict literal: {repr(config)}')
-        except ValueError:
-            raise ParsingError(f'Expression is not a valid dict literal: {repr(config)}.\nMaybe you forgot to quote a key?')
-    return type_name, (config or {})
