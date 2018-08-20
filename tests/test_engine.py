@@ -1,7 +1,7 @@
+import random
 import unittest
 import itertools as it
 
-from fake_random import FakeRandom
 from feanor.engine import Engine
 from feanor.schema import Schema
 
@@ -9,15 +9,8 @@ from feanor.schema import Schema
 class TestEngine(unittest.TestCase):
 
     def setUp(self):
-        values = list(reversed(range(5000)))
-        # noinspection PyDefaultArgument
-        config = {
-            'random': {(): [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]},
-            'randint': {
-                'default': lambda a, b: a + (values.pop() % b),
-            }
-        }
-        self.rand = FakeRandom.from_dict(config)
+        self.rand = random.Random(0)
+        self.rand_copy = random.Random(0)
 
     def test_can_build_a_generator_from_a_schema(self):
         schema = Schema()
@@ -29,7 +22,8 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(3, engine.number_of_columns)
         values = list(engine.generate_data(1))
         self.assertEqual(1, len(values))
-        self.assertEqual((0, 1, 2), values[0])
+        expected_values = tuple(self.rand_copy.randint(0, 1_000_000) for _  in range(3))
+        self.assertEqual(expected_values, values[0])
 
     def test_can_build_a_generator_from_a_schema_with_config(self):
         schema = Schema()
@@ -38,7 +32,8 @@ class TestEngine(unittest.TestCase):
 
         self.assertEqual(1, engine.number_of_columns)
         values = set(engine.generate_data(20))
-        self.assertEqual({(v,) for v in range(10, 30)}, values)
+        expected_values = {(self.rand_copy.randint(10, 1_000_000),) for _ in range(20)}
+        self.assertEqual(expected_values, values)
 
     def test_can_generate_arbitrary_data_with_number_of_rows(self):
         schema = Schema()
@@ -49,7 +44,7 @@ class TestEngine(unittest.TestCase):
 
         generated_values = list(engine.generate_data(number_of_rows=10))
         self.assertEqual(10, len(generated_values))
-        iterable = iter(range(30))
+        iterable = (self.rand_copy.randint(0, 1_000_000) for _ in range(30))
         self.assertEqual(list(zip(iterable, iterable, iterable)), generated_values)
         self.assertEqual(10, len(set(generated_values)))
 
@@ -62,7 +57,7 @@ class TestEngine(unittest.TestCase):
 
         generated_values = list(it.islice(engine.generate_data(), 1000))
         self.assertEqual(1000, len(generated_values))
-        iterable = iter(range(3000))
+        iterable = (self.rand_copy.randint(0, 1_000_000) for _ in range(3000))
         self.assertEqual(list(zip(iterable, iterable, iterable)), generated_values)
 
     def test_can_generate_two_identical_columns_by_referencing_same_arbitrary(self):

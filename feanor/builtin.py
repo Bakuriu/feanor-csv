@@ -1,11 +1,16 @@
 import inspect
+import string
+from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
 from itertools import cycle
 
 from .arbitrary import Arbitrary
 
 __all__ = [
-    'Arbitrary', 'IntArbitrary', 'FloatArbitrary', 'MultiArbitrary', 'FixedArbitrary', 'CyclingArbitrary',
-    'RepeaterArbitrary'
+    'Arbitrary',
+    'IntArbitrary', 'FloatArbitrary',
+    'StringArbitrary', 'AlphaArbitrary', 'AlphaNumericArbitrary',
+    'DateArbitrary',
+    'MultiArbitrary', 'FixedArbitrary', 'CyclingArbitrary', 'RepeaterArbitrary'
 ]
 
 
@@ -18,7 +23,7 @@ class IntArbitrary(Arbitrary):
 
     @classmethod
     def default_config(cls):
-        return {'min': 0, 'max': 1000000}
+        return {'min': 0, 'max': 1_000_000}
 
 
 class FloatArbitrary(Arbitrary):
@@ -57,7 +62,7 @@ class FloatArbitrary(Arbitrary):
                 'b': 'max',
                 'lambd': 'lambda',
             }
-            config_names = ((renamed_params.get(name, name),name) for name in used_names)
+            config_names = ((renamed_params.get(name, name), name) for name in used_names)
             return {param_name: getattr(self.config, config_name) for config_name, param_name in config_names}
 
     def __call__(self):
@@ -73,6 +78,94 @@ class FloatArbitrary(Arbitrary):
     @classmethod
     def required_config_keys(cls):
         return {'distribution'}
+
+
+class StringArbitrary(Arbitrary):
+    def __init__(self, random_funcs, config=None):
+        super().__init__(random_funcs, 'string', config)
+        if not isinstance(self.config.characters, str):
+            self.config.characters = ''.join(self.config.characters)
+
+    def __call__(self):
+        min_len = getattr(self.config, 'min_len', self.config.len)
+        max_len = getattr(self.config, 'max_len', self.config.len)
+        string_length = self._random_funcs.randint(min_len, max_len)
+        weights = getattr(self.config, 'weights', None)
+        return ''.join(self._random_funcs.choices(self.config.characters, weights, k=string_length))
+
+    @classmethod
+    def default_config(cls):
+        return {'len': 10, 'characters': string.ascii_letters + string.digits + string.punctuation + ' \t'}
+
+
+class AlphaArbitrary(StringArbitrary):
+    def __init__(self, random_funcs, config=None):
+        config = config or {}
+        config['characters'] = string.ascii_letters
+        super().__init__(random_funcs, config)
+
+    @classmethod
+    def default_config(cls):
+        return {'len': 10}
+
+
+class AlphaNumericArbitrary(StringArbitrary):
+    def __init__(self, random_funcs, config=None):
+        config = config or {}
+        config['characters'] = string.ascii_letters + string.digits
+        super().__init__(random_funcs, config)
+
+    @classmethod
+    def default_config(cls):
+        return {'len': 10}
+
+
+class DateArbitrary(Arbitrary):
+    def __init__(self, random_funcs, config=None):
+        super().__init__(random_funcs, 'date', config)
+        self._mode = self.config.get_mode('interval')
+        if self.config.has_attrs('min_ts'):
+            min_ts = self.config.min_ts
+            self._start_date = datetime.utcfromtimestamp(min_ts)
+        else:
+            min_year = self.config.get_min_year(MINYEAR)
+            min_month = self.config.get_min_month(1)
+            min_day = self.config.get_min_day(1)
+            min_hour = self.config.get_min_hour(0)
+            min_minute = self.config.get_min_minute(0)
+            min_second = self.config.get_min_second(0)
+            self._start_date = datetime(min_year, min_month, min_day, min_hour, min_minute, min_second,
+                                        tzinfo=timezone.utc)
+
+        if self.config.has_attrs('max_ts'):
+            max_ts = self.config.max_ts
+            self._end_date = datetime.utcfromtimestamp(max_ts)
+        else:
+            max_year = self.config.get_max_year(MAXYEAR)
+            max_month = self.config.get_max_month(12)
+            max_day = self.config.get_max_day(31)
+            max_hour = self.config.get_max_hour(23)
+            max_minute = self.config.get_max_minute(59)
+            max_second = self.config.get_max_second(59)
+            self._end_date = datetime(max_year, max_month, max_day, max_hour, max_minute, max_second,
+                                      tzinfo=timezone.utc)
+
+    def __call__(self):
+        if self._mode == 'interval':
+            start_ts = self._start_date.timestamp()
+            end_ts = self._end_date.timestamp()
+            timestamp = self._random_funcs.randint(start_ts, end_ts)
+            return datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=timestamp)
+        elif self._mode == 'slice':
+            max_days_difference = (self._end_date - self._start_date).days
+            num_day = self._random_funcs.randint(0, max_days_difference)
+            date = self._start_date + timedelta(days=num_day)
+            hour = self._random_funcs.randint(self._start_date.hour, self._end_date.hour)
+            minute = self._random_funcs.randint(self._start_date.minute, self._end_date.minute)
+            second = self._random_funcs.randint(self._start_date.second, self._end_date.second)
+            return datetime(date.year, date.month, date.day, hour, minute, second)
+        else:
+            raise ValueError('Invalid mode {!r}'.format(self._mode))
 
 
 class MultiArbitrary(Arbitrary):

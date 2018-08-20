@@ -1,3 +1,4 @@
+import re
 from abc import ABCMeta, abstractmethod
 from types import SimpleNamespace
 from typing import Set
@@ -12,7 +13,7 @@ class Arbitrary(metaclass=ABCMeta):
         conf = self.default_config()
         conf.update(config or {})
         if self.required_config_keys() <= conf.keys():
-            self._config = SimpleNamespace(**conf)
+            self._config = Config(**conf)
         else:
             raise ValueError('Type {} requires at least the following configuration values: {}'
                              .format(self._type_name, to_string_list(self.required_config_keys())))
@@ -36,3 +37,14 @@ class Arbitrary(metaclass=ABCMeta):
     @abstractmethod
     def __call__(self):
         raise NotImplementedError
+
+
+class Config(SimpleNamespace):
+    def __getattr__(self, item):
+        match = re.match(r'\Aget_(?P<attr>\w+)\Z', item)
+        if match:
+            return lambda default=None: getattr(self, match.group('attr'), default)
+        raise AttributeError(item)
+
+    def has_attrs(self, *attrs):
+        return all(hasattr(self, attr) for attr in attrs)

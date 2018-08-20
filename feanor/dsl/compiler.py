@@ -1,5 +1,4 @@
 from itertools import starmap
-from typing import List
 
 from .ast import *
 from .types import *
@@ -156,7 +155,7 @@ class TypeInferencer:
 
     @infer.register(LetNode)
     def _(self, tree: LetNode):
-        *assignments, expr= tree.children
+        *assignments, expr = tree.children
 
         # we must do this for the side effects on the children and environment!
         for assignment in assignments:

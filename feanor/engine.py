@@ -1,9 +1,14 @@
 import random
 
-from .builtin import IntArbitrary, FixedArbitrary, CyclingArbitrary
+from .builtin import *
 
 DEFAULT_ENVIRONMENT = {
     'int': IntArbitrary,
+    'float': FloatArbitrary,
+    'string': StringArbitrary,
+    'alpha': AlphaArbitrary,
+    'alnum': AlphaNumericArbitrary,
+    'date': DateArbitrary,
     'fixed': FixedArbitrary,
     'cycle': CyclingArbitrary,
 }
