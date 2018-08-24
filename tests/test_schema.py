@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from feanor.schema import (
-    Schema, MissingVersionError, InvalidVersionNumberError, FunctionalTransformer, SchemaError,
+    Schema, FunctionalTransformer, SchemaError,
     ProjectionTransformer,
 )
 

@@ -103,4 +103,3 @@ class TestRequiredConfigNames(unittest.TestCase):
 
         arbitrary = HasDefaultConfig(None, 'test_arbitrary', {'a': 'A'})
         self.assertEqual(SimpleNamespace(key='value', a='A'), arbitrary.config)
-

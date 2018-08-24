@@ -1,6 +1,6 @@
+import itertools as it
 import random
 import unittest
-import itertools as it
 
 from feanor.engine import Engine
 from feanor.schema import Schema
@@ -22,7 +22,7 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(3, engine.number_of_columns)
         values = list(engine.generate_data(1))
         self.assertEqual(1, len(values))
-        expected_values = tuple(self.rand_copy.randint(0, 1_000_000) for _  in range(3))
+        expected_values = tuple(self.rand_copy.randint(0, 1_000_000) for _ in range(3))
         self.assertEqual(expected_values, values[0])
 
     def test_can_build_a_generator_from_a_schema_with_config(self):

@@ -82,7 +82,6 @@ class TestTypeNameNode(unittest.TestCase):
             self.assertNotEqual(TypeNameNode.of('a'), node)
 
 
-
 class TestReferenceNode(unittest.TestCase):
     def test_equals_if_same_name(self):
         self.assertEqual(ReferenceNode.of('a'), ReferenceNode.of('a'))
@@ -105,6 +104,7 @@ class TestReferenceNode(unittest.TestCase):
         ]
         for node in other_nodes:
             self.assertNotEqual(ReferenceNode.of('a'), node)
+
 
 class TestLiteralNode(unittest.TestCase):
     def test_equals_if_same_string_value(self):
@@ -153,7 +153,6 @@ class TestLiteralNode(unittest.TestCase):
             self.assertEqual(LiteralNode.of(value).to_plain_object(), expected)
 
 
-
 class TestAssignNode(unittest.TestCase):
     def test_equals_if_same_name_same_expr(self):
         self.assertEqual(AssignNode.of(LiteralNode.of(1), 'a'), AssignNode.of(LiteralNode.of(1), 'a'))
@@ -180,8 +179,6 @@ class TestAssignNode(unittest.TestCase):
         ]
         for node in other_nodes:
             self.assertNotEqual(AssignNode.of(LiteralNode('a'), 'a'), node)
-
-
 
 
 class TestBinaryOpNode(unittest.TestCase):
@@ -239,7 +236,6 @@ class TestBinaryOpNode(unittest.TestCase):
             self.assertNotEqual(BinaryOpNode.of('|', LiteralNode.of(1), Identifier.of('a')), node)
 
 
-
 class TestCallNode(unittest.TestCase):
     def test_equals_if_same_name_same_arguments(self):
         self.assertEqual(
@@ -264,6 +260,7 @@ class TestCallNode(unittest.TestCase):
             CallNode.of('a', [LiteralNode.of(1), Identifier.of('a')]),
             CallNode.of('a', [LiteralNode.of(1), Identifier.of('b')])
         )
+
     def test_not_equals_if_different_num_arguments(self):
         self.assertNotEqual(
             CallNode.of('a', [LiteralNode.of(1), Identifier.of('a')]),
@@ -286,7 +283,6 @@ class TestCallNode(unittest.TestCase):
         ]
         for node in other_nodes:
             self.assertNotEqual(CallNode.of('a', [LiteralNode.of(1)]), node)
-
 
 
 class TestProjectionNode(unittest.TestCase):

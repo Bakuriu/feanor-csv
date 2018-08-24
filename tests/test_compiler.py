@@ -239,7 +239,6 @@ class TestTypeInferencer(unittest.TestCase):
         self.assertEqual({'type': SimpleType('int')}, reference.info)
         self.assertEqual({'type': SimpleType('int')}, tree.info)
 
-
     def test_raises_error_when_merging_incompatible_types(self):
         with self.assertRaises(TypeError):
             self.inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
@@ -640,8 +639,10 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('column#0')
         schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'], transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
 
         got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
         self.assertEqual(schema, got)
@@ -650,8 +651,10 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('column#0')
         schema.add_arbitrary('arbitrary#0', type='int', config={'min': 10})
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'], transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+                               transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
 
         got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int', {'min': 10}))], ReferenceNode.of('a')))
         self.assertEqual(schema, got)
@@ -695,7 +698,7 @@ class TestCompiler(unittest.TestCase):
                                transformer=MergeTransformer(2))
 
         expr = BinaryOpNode.of('.',
-                             BinaryOpNode.of('+', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('int'), 'a')),
-                             TypeNameNode.of('float'))
+                               BinaryOpNode.of('+', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('int'), 'a')),
+                               TypeNameNode.of('float'))
         got = self.compiler.compile(expr, column_names=['transformer#1#0'])
         self.assertEqual(schema, got)

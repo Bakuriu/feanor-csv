@@ -92,7 +92,7 @@ class TestParser(ParsingTestCase):
     def test_let_expression_with_two_defines(self):
         got = self.parser.parse('let a := #int b := #float in @a+@b')
         expected = LetNode.of([('a', TypeNameNode.of('int')), ('b', TypeNameNode.of('float'))],
-                           BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
+                              BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
         self.assertEqual(expected, got)
 
     def test_parenthesis_do_not_add_a_node_in_ast(self):
