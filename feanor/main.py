@@ -4,7 +4,7 @@ import csv
 import argparse
 from itertools import starmap
 
-from .dsl.compiler import Compiler
+from .dsl.compiler import Compiler, BuiltInCompatibility, DefaultCompatibility
 from .dsl import get_parser as dsl_get_parser
 from .engine import generate_data
 
@@ -30,9 +30,9 @@ def parse_arguments(args=None):
 
 def get_schema_and_size_params(args):
     if args.schema_definition_type in ('cmdline', 'options', 'opts'):
-        schema = make_schema_cmdline(args.columns, args.expressions_defined, args.show_header)
+        schema = make_schema_cmdline(args.columns, args.expressions_defined, args.show_header, args.compatibility)
     elif args.schema_definition_type == 'expr':
-        schema = make_schema_expr(args.schema, _parse_columns(args.columns_names), args.show_header)
+        schema = make_schema_expr(args.schema, _parse_columns(args.columns_names), args.show_header, args.compatibility)
     else:
         raise ValueError('Invalid subcommand {!r}'.format(args.schema_definition_type))
 
@@ -49,6 +49,7 @@ def get_schema_and_size_params(args):
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.', dest='show_header')
+    parser.add_argument('--compatibility', default='builtin', help='The compatibility to use.')
     size_options = parser.add_mutually_exclusive_group(required=True)
     size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV', metavar='N')
     size_options.add_argument('-b', '--num-bytes', type=int, help='The approximate number of bytes of the produced CSV', metavar='N')
@@ -74,16 +75,22 @@ def get_parser():
     return parser
 
 
-def make_schema_cmdline(columns, expressions_defined, show_header):
+def make_schema_cmdline(columns, expressions_defined, show_header, compatibility):
     columns_names, expression = get_definitions_and_column_names_for_cmdline(columns, expressions_defined)
-    return make_schema_from_expression(expression, columns_names, show_header)
+    return make_schema_from_expression(expression, columns_names, show_header, compatibility)
 
-def make_schema_expr(expression, columns_names, show_header):
-    return make_schema_from_expression(expression, columns_names, show_header)
+def make_schema_expr(expression, columns_names, show_header, compatibility):
+    return make_schema_from_expression(expression, columns_names, show_header, compatibility)
 
-def make_schema_from_expression(expression, columns_names, show_header):
+def make_schema_from_expression(expression, columns_names, show_header, compatibility):
     parser = dsl_get_parser()
-    return Compiler(show_header=show_header).compile(parser.parse(expression), column_names=columns_names)
+    if compatibility == 'builtin':
+        compatibility = BuiltInCompatibility()
+    elif compatibility == 'none':
+        compatibility = DefaultCompatibility()
+    else:
+        raise ValueError('Invalid compatibility: {!r}'.format(compatibility))
+    return Compiler(show_header=show_header, compatibility=compatibility).compile(parser.parse(expression), column_names=columns_names)
 
 
 def get_definitions_and_column_names_for_cmdline(columns, expressions_defined):

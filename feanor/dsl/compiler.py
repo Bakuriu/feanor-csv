@@ -79,6 +79,31 @@ class SimpleCompatibility(Compatibility):
         return ChoiceType([self.get_upperbound(t, other) for t in main.types])
 
 
+class BuiltInCompatibility(SimpleCompatibility):
+
+    def __init__(self):
+        super().__init__(upperbound=self._simple_type_upperbound)
+
+    def _simple_type_upperbound(self, first_type, second_type):
+        if first_type == second_type:
+            return first_type
+        # TODO: test this
+        first_type_name = first_type.name
+        second_type_name = second_type.name
+        compatible_pairs = {
+            ('int', 'float'),
+            ('alpha', 'alnum'),
+            ('alpha', 'string'),
+            ('alnum', 'string'),
+        }
+        if (first_type_name, second_type_name) in compatible_pairs:
+            return second_type
+        elif (second_type_name, first_type_name) in compatible_pairs:
+            return first_type
+
+        raise TypeError(f'type {first_type} is incompatible with type {second_type}')
+
+
 class DefaultCompatibility(SimpleCompatibility):
 
     def __init__(self):
