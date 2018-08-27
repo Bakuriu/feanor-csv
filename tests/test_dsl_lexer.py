@@ -287,3 +287,26 @@ class TestLexer(unittest.TestCase):
             ('STRING', '''a"b'c"""''', 1, 0),
         ]
         self.assertEqualTokens(expected_tokens, tokens)
+
+    def test_can_lex_a_string_with_newlines_outside_string_literal(self):
+        tokens = tokenize("#int\n + \n#int\n\n\n.\n#float")
+        expected_tokens = [
+            ('#', '#', 1), ('IDENTIFIER', 'int', 1), ('+', '+', 2), ('#', '#', 3),
+            ('IDENTIFIER', 'int', 3), ('.', '.', 6), ('#', '#', 7), ('IDENTIFIER', 'float', 7),
+        ]
+        self.assertEqualTokens(expected_tokens, tokens)
+
+    def test_single_quote_string_cannot_contain_newline(self):
+        with self.assertRaises(ParsingError):
+            tokenize('"ciao\n"')
+
+
+    def test_multi_quotes_string_can_contain_newline(self):
+        tokens = tokenize('"""ciao\n\n""" .')
+        expected_tokens = [('STRING', 'ciao\n\n'), ('.', '.', 3)]
+        self.assertEqualTokens(expected_tokens, tokens)
+
+
+    def test_can_detect_error_inside_string_literal(self):
+        with self.assertRaises(ParsingError):
+            tokenize('"\\a"')
