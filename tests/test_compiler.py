@@ -256,6 +256,60 @@ class TestTypeInferencer(unittest.TestCase):
             inferencer = TypeInferencer(env=env)
             inferencer.infer(BinaryOpNode.of('+', left_expr, right_expr))
 
+    def test_raises_error_when_reassigning_same_name(self):
+        # assign inside assign
+        with self.assertRaises(TypeError):
+            inferencer = TypeInferencer()
+            inferencer.infer(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'a'))
+        # let inside assign
+        with self.assertRaises(TypeError):
+            inferencer = TypeInferencer()
+            inferencer.infer(AssignNode.of(LetNode.of([('a', TypeNameNode.of('int'))], TypeNameNode.of('int')), 'a'))
+        # assign inside let
+        with self.assertRaises(TypeError):
+            inferencer = TypeInferencer()
+            inferencer.infer(LetNode.of([('a', AssignNode.of(TypeNameNode.of('int'), 'a'))], TypeNameNode.of('int')))
+        # let inside let
+        with self.assertRaises(TypeError):
+            inferencer = TypeInferencer()
+            inferencer.infer(LetNode.of([('a', LetNode.of([('a', TypeNameNode.of('int'))], TypeNameNode.of('float')))], TypeNameNode.of('int')))
+
+    def test_raises_error_if_projecting_on_a_non_composite_node(self):
+        with self.assertRaises(TypeError):
+            inferencer = TypeInferencer()
+            inferencer.infer(ProjectionNode.of(TypeNameNode.of('int'), (0, 1)))
+
+    def test_raises_error_if_projecting_indices_outside_output_dimension(self):
+        with self.assertRaises(TypeError) as ctx:
+            inferencer = TypeInferencer()
+            inferencer.infer(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 2))
+        self.assertEqual('Indices out of range for projection', str(ctx.exception))
+
+    def test_raises_error_if_function_called_with_incorrect_number_of_arguments(self):
+        with self.assertRaises(TypeError) as ctx:
+            inferencer = TypeInferencer(func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('int'), TypeNameNode.of('float')]))
+        self.assertEqual('Incorrect number of arguments to function ciao: 2 instead of 1', str(ctx.exception))
+
+    def test_raises_error_if_function_called_with_incompatible_argument_type(self):
+        with self.assertRaises(TypeError) as ctx:
+            inferencer = TypeInferencer(func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('float')]))
+        self.assertEqual('Incompatible types for argument 0 of ciao: float instead of int', str(ctx.exception))
+
+    def test_raises_error_if_merge_on_incompatible_parallel_types(self):
+        with self.assertRaises(TypeError) as ctx:
+            inferencer = TypeInferencer(env={'a': ParallelType([SimpleType('int')]), 'b': ParallelType([SimpleType('float')])})
+            inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
+        self.assertEqual("Incompatible types for merge: Parallel(int) and Parallel(float)", str(ctx.exception))
+
+    def test_raises_error_if_merge_on_incompatible_types(self):
+        with self.assertRaises(TypeError) as ctx:
+            inferencer = TypeInferencer(env={'a': ParallelType([SimpleType('int')]), 'b': SimpleType('float')})
+            inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
+        self.assertEqual("Incompatible types for merge: Parallel(int) and float", str(ctx.exception))
+
+
 
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
@@ -287,6 +341,26 @@ class TestDefaultCompatibility(unittest.TestCase):
         for cls in (ChoiceType, ParallelType):
             self.assertFalse(self.compatibility.is_compatible(cls([SimpleType('int'), SimpleType('string')]),
                                                               cls([SimpleType('int'), SimpleType('not-string')])))
+
+    def test_parallel_type_with_one_dimension_is_compatible_with_simple_type(self):
+        self.assertTrue(self.compatibility.is_compatible(ParallelType([SimpleType('int')]), SimpleType('int')))
+        # symmetric case:
+        self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), ParallelType([SimpleType('int')])))
+
+    def test_parallel_type_with_more_than_one_dimension_is_not_compatible_with_simple_type(self):
+        self.assertFalse(self.compatibility.is_compatible(ParallelType([SimpleType('int')]*2), SimpleType('int')))
+        # symmetric case:
+        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), ParallelType([SimpleType('int')]*2)))
+
+    def test_choice_type_with_one_dimension_is_compatible_with_simple_type(self):
+        self.assertTrue(self.compatibility.is_compatible(ChoiceType([SimpleType('int')]), SimpleType('int')))
+        # symmetric case:
+        self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), ChoiceType(2*[SimpleType('int')])))
+
+    def test_choice_type_with_more_than_one_dimension_is_not_compatible_with_simple_type(self):
+        self.assertFalse(self.compatibility.is_compatible(ChoiceType([ParallelType(2*[SimpleType('int')])]), SimpleType('int')))
+        # symmetric case:
+        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), ChoiceType([ParallelType(2*[SimpleType('int')])])))
 
 
 class TestCompiler(unittest.TestCase):

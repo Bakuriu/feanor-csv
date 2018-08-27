@@ -35,6 +35,8 @@ class CompositeType(Type):
     def __str__(self):
         return self._expanded_name
 
+    __repr__ = __str__
+
     @classmethod
     def compute_name(cls, types):
         return '{}({})'.format(cls.__name__[:-4], ', '.join(ty.name for ty in types))
