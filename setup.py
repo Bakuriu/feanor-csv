@@ -32,9 +32,14 @@ setup(
     install_requires=[
         'ply',
     ],
+    setup_requires=[
+        'pytest-runner',
+    ],
+    tests_require=[
+        'pytest', 'pytest-cov',
+    ],
     extras_require={
         'dev': ['check-manifest'],
-        'test': ['coverage'],
     },
     entry_points={
         'console_scripts': [

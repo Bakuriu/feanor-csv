@@ -7,3 +7,7 @@ dist/
 *.egg-info/
 parser.out
 parsetab.py
+coverage_reports/*
+.coverage
+.eggs/*
+.pytest_cache/*
