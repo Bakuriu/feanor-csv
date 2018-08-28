@@ -4,6 +4,7 @@ import csv
 import argparse
 from itertools import starmap
 
+from . import __version__
 from .dsl.compiler import Compiler, BuiltInCompatibility, DefaultCompatibility
 from .dsl import get_parser as dsl_get_parser
 from .engine import generate_data
@@ -50,6 +51,7 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.', dest='show_header')
     parser.add_argument('--compatibility', default='builtin', help='The compatibility to use.')
+    parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     size_options = parser.add_mutually_exclusive_group(required=True)
     size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV', metavar='N')
     size_options.add_argument('-b', '--num-bytes', type=int, help='The approximate number of bytes of the produced CSV', metavar='N')
