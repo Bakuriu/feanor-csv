@@ -1,9 +1,13 @@
 import unittest
 from types import SimpleNamespace
+from unittest import TestCase
 
 from feanor.schema import (
     Schema, FunctionalTransformer, SchemaError,
     ProjectionTransformer,
+    ChoiceTransformer,
+    MergeTransformer,
+    IdentityTransformer,
 )
 
 
@@ -220,3 +224,69 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(SchemaError) as ctx:
             schema.add_transformer('my_transformer', inputs=['A'], outputs=['A'], transformer=ret_none)
         self.assertEqual("Transformer 'my_transformer' is already defined.", str(ctx.exception))
+
+
+class TestChoiceTransformer(TestCase):
+    def test_raises_error_if_left_config_is_not_a_number(self):
+        with self.assertRaises(TypeError):
+            ChoiceTransformer(2, "something", 1)
+
+    def test_raises_error_if_left_config_is_out_of_range(self):
+        with self.assertRaises(TypeError):
+            ChoiceTransformer(2, 2.0, 0)
+
+    def test_raises_error_if_right_config_is_not_a_number(self):
+        with self.assertRaises(TypeError):
+            ChoiceTransformer(2, 1, "something")
+
+    def test_raises_error_if_right_config_is_out_of_range(self):
+        with self.assertRaises(TypeError):
+            ChoiceTransformer(2, 0.5, 2.0)
+
+    def test_raises_error_if_config_sum_is_out_of_range(self):
+        with self.assertRaises(ValueError):
+            ChoiceTransformer(2, 0.75, 0.75)
+
+    def test_always_return_left_input_if_probability_is_one(self):
+        transformer = ChoiceTransformer(1, 1.0, 0.0)
+        for _ in range(10):
+            self.assertEqual([0], transformer([0, 1]))
+
+    def test_always_return_right_input_if_probability_is_one(self):
+        transformer = ChoiceTransformer(1, 0.0, 1.0)
+        for _ in range(10):
+            self.assertEqual([1], transformer([0, 1]))
+
+    def test_always_return_none_if_probability_sum_is_zero(self):
+        transformer = ChoiceTransformer(1, 0.0, 0.0)
+        for _ in range(10):
+            self.assertEqual((None,), transformer([0, 1]))
+
+    def test_returns_all_values_if_probability_is_not_zero_or_one_and_sums_to_1(self):
+        transformer = ChoiceTransformer(1, 0.5, 0.5)
+        self.assertEqual({0, 1}, {transformer([0, 1])[0] for _ in range(50)})
+
+    def test_returns_all_values_and_none_if_probability_is_not_zero_or_one_and_sums_less_than_1(self):
+        transformer = ChoiceTransformer(1, 0.3, 0.3)
+        self.assertEqual({0, 1, None}, {transformer([0, 1])[0] for _ in range(50)})
+
+
+class TestMergeTransformer(TestCase):
+    def test_can_merge_ints(self):
+        transformer = MergeTransformer(4)
+        self.assertEqual((1, 2), transformer([0, 1, 1, 1]))
+
+    def test_can_merge_strings(self):
+        transformer = MergeTransformer(4)
+        self.assertEqual(("ac", "bd"), transformer(["a", "b", "c", "d"]))
+
+class TestIdentityTransformer(TestCase):
+    def test_can_return_identity_of_a_single_value(self):
+        transformer = IdentityTransformer(1)
+        self.assertEqual((0,), transformer([0]))
+
+    def test_can_return_identity_of_multiple_values(self):
+        transformer = IdentityTransformer(3)
+        self.assertEqual((0, 1, 2), transformer([0, 1, 2 ]))
+
+

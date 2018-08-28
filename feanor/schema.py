@@ -212,9 +212,9 @@ class ChoiceTransformer(Transformer):
         super().__init__(arity, arity // 2)
         self._left_config = left_config
         self._right_config = right_config
-        if not isinstance(self._left_config, (int, float)) and 0 <= self._left_config <= 1:
+        if not isinstance(self._left_config, (int, float)) or not (0 <= self._left_config <= 1):
             raise TypeError('Invalid configuration for choice operator: {!r}'.format(self._left_config))
-        if not isinstance(self._right_config, (int, float)) and 0 <= self._right_config <= 1:
+        if not isinstance(self._right_config, (int, float)) or not (0 <= self._right_config <= 1):
             raise TypeError('Invalid configuration for choice operator: {!r}'.format(self._right_config))
         if self._left_config + self._right_config > 1:
             raise ValueError(
