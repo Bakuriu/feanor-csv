@@ -96,3 +96,23 @@ def overloaded(func=None, is_method=None):
     if func is None:
         return inner_decorator
     return inner_decorator(func)
+
+
+def consecutive_pairs(sequence):
+    """Convert a sequence into the sequence of consecutive elements.
+
+        >>> list(consecutive_pairs([1,2,3]))
+        [(1, 2), (2, 3)]
+        >>> list(consecutive_pairs("hello"))
+        [('h', 'e'), ('e', 'l'), ('l', 'l'), ('l', 'o')]
+        >>> list(consecutive_pairs([]))
+        []
+        >>> list(consecutive_pairs([0]))
+        []
+
+    """
+    iterable = iter(sequence)
+    cur_element = next(iterable, None)
+    for next_element in iterable:
+        yield (cur_element, next_element)
+        cur_element = next_element
