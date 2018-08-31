@@ -1,8 +1,12 @@
 import inspect
+import random
 import string
 from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
-from itertools import cycle
+from itertools import cycle, chain
 
+from .dsl.compiler import SimpleCompatibility
+from .library import Library
+from .util import consecutive_pairs
 from .arbitrary import Arbitrary
 
 __all__ = [
@@ -234,3 +238,56 @@ class CyclingArbitrary(Arbitrary):
     @classmethod
     def required_config_keys(cls):
         return {'values'}
+
+
+class BuiltInLibrary(Library):
+    def __init__(self, global_configuration, random_funcs=random):
+        super().__init__(global_configuration, random_funcs)
+        self._builtin_factories = {
+            'int': IntArbitrary,
+            'float': FloatArbitrary,
+            'string': StringArbitrary,
+            'alpha': AlphaArbitrary,
+            'alnum': AlphaNumericArbitrary,
+            'date': DateArbitrary,
+            'fixed': FixedArbitrary,
+            'cycle': CyclingArbitrary,
+        }
+    def get_arbitrary_factory(self, name):
+        return self._builtin_factories[name]
+
+    @classmethod
+    def upperbounds(cls):
+        return {
+            ('int', 'float'),
+            ('alpha', 'alnum', 'string'),
+        }
+
+    @classmethod
+    def compatibility(cls):
+        compatibility = BuiltInCompatibility()
+        compatibility.add_upperbounds(cls.upperbounds())
+        return compatibility
+
+
+class BuiltInCompatibility(SimpleCompatibility):
+
+    def __init__(self):
+        super().__init__(upperbound=self._simple_type_upperbound)
+        self._upperbound_pairs = set()
+
+    def _simple_type_upperbound(self, first_type, second_type):
+        if first_type == second_type:
+            return first_type
+        # TODO: test this
+        first_type_name = first_type.name
+        second_type_name = second_type.name
+        if (first_type_name, second_type_name) in self._upperbound_pairs:
+            return second_type
+        elif (second_type_name, first_type_name) in self._upperbound_pairs:
+            return first_type
+
+        raise TypeError(f'type {first_type} is incompatible with type {second_type}')
+
+    def add_upperbounds(self, upperbounds):
+        self._upperbound_pairs.update(chain.from_iterable(map(consecutive_pairs, upperbounds)))

@@ -2,6 +2,7 @@ import itertools as it
 import random
 import unittest
 
+from feanor.builtin import BuiltInLibrary
 from feanor.engine import Engine
 from feanor.schema import Schema
 
@@ -11,13 +12,14 @@ class TestEngine(unittest.TestCase):
     def setUp(self):
         self.rand = random.Random(0)
         self.rand_copy = random.Random(0)
+        self.library = BuiltInLibrary({}, self.rand)
 
     def test_can_build_a_generator_from_a_schema(self):
         schema = Schema()
         schema.define_column('A', type='int')
         schema.define_column('B', type='int')
         schema.define_column('C', type='int')
-        engine = Engine(schema, random_funcs=self.rand)
+        engine = Engine(schema, self.library)
 
         self.assertEqual(3, engine.number_of_columns)
         values = list(engine.generate_data(1))
@@ -28,7 +30,7 @@ class TestEngine(unittest.TestCase):
     def test_can_build_a_generator_from_a_schema_with_config(self):
         schema = Schema()
         schema.define_column('A', type='int', config={'min': 10})
-        engine = Engine(schema, random_funcs=self.rand)
+        engine = Engine(schema, self.library)
 
         self.assertEqual(1, engine.number_of_columns)
         values = set(engine.generate_data(20))
@@ -40,7 +42,7 @@ class TestEngine(unittest.TestCase):
         schema.define_column('A', type='int')
         schema.define_column('B', type='int')
         schema.define_column('C', type='int')
-        engine = Engine(schema, random_funcs=self.rand)
+        engine = Engine(schema, self.library)
 
         generated_values = list(engine.generate_data(number_of_rows=10))
         self.assertEqual(10, len(generated_values))
@@ -53,7 +55,7 @@ class TestEngine(unittest.TestCase):
         schema.define_column('A', type='int')
         schema.define_column('B', type='int')
         schema.define_column('C', type='int')
-        engine = Engine(schema, random_funcs=self.rand)
+        engine = Engine(schema, self.library)
 
         generated_values = list(it.islice(engine.generate_data(), 1000))
         self.assertEqual(1000, len(generated_values))
@@ -66,7 +68,7 @@ class TestEngine(unittest.TestCase):
         schema.define_column('A', arbitrary='bob')
         schema.define_column('B', arbitrary='bob')
 
-        engine = Engine(schema, random_funcs=self.rand)
+        engine = Engine(schema, self.library)
         generated_values = list(engine.generate_data(number_of_rows=10))
         first_col, second_col = zip(*generated_values)
         self.assertEqual(first_col, second_col)
@@ -76,7 +78,7 @@ class TestEngine(unittest.TestCase):
         schema.define_column('A', type='int')
         schema.define_column('B', arbitrary='A')
 
-        engine = Engine(schema, random_funcs=self.rand)
+        engine = Engine(schema, self.library)
         generated_values = list(engine.generate_data(number_of_rows=10))
         first_col, second_col = zip(*generated_values)
         self.assertEqual(first_col, second_col)

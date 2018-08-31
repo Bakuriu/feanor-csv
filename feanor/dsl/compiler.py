@@ -3,9 +3,9 @@ from itertools import starmap
 from .ast import *
 from .types import *
 from ..schema import *
-from ..util import overloaded, consecutive_pairs
+from ..util import overloaded
 
-__all__ = ['SimpleCompatibility', 'DefaultCompatibility', 'TypeInferencer', 'Compiler']
+__all__ = ['SimpleCompatibility', 'NoCompatibility', 'TypeInferencer', 'Compiler']
 
 
 class Compatibility(metaclass=ABCMeta):
@@ -79,35 +79,7 @@ class SimpleCompatibility(Compatibility):
         return ChoiceType([self.get_upperbound(t, other) for t in main.types])
 
 
-class BuiltInCompatibility(SimpleCompatibility):
-
-    def __init__(self):
-        super().__init__(upperbound=self._simple_type_upperbound)
-        self._upperbound_pairs = {
-            ('int', 'float'),
-            ('alpha', 'alnum'),
-            ('alpha', 'string'),
-            ('alnum', 'string'),
-        }
-
-    def _simple_type_upperbound(self, first_type, second_type):
-        if first_type == second_type:
-            return first_type
-        # TODO: test this
-        first_type_name = first_type.name
-        second_type_name = second_type.name
-        if (first_type_name, second_type_name) in self._upperbound_pairs:
-            return second_type
-        elif (second_type_name, first_type_name) in self._upperbound_pairs:
-            return first_type
-
-        raise TypeError(f'type {first_type} is incompatible with type {second_type}')
-
-    def add_upperbounds(self, upperbounds):
-        self._upperbound_pairs.update(chain.from_iterable(map(consecutive_pairs, upperbounds)))
-
-
-class DefaultCompatibility(SimpleCompatibility):
+class NoCompatibility(SimpleCompatibility):
 
     def __init__(self):
         super().__init__(upperbound=self._simple_type_upperbound)
@@ -122,7 +94,7 @@ class TypeInferencer:
     def __init__(self, env=None, func_env=None, compatibility=None):
         self.env = env if env is not None else {}
         self.func_env = func_env if func_env is not None else {}
-        self.compatibility = compatibility or DefaultCompatibility()
+        self.compatibility = compatibility or NoCompatibility()
 
     @overloaded
     def infer(self, tree: ExprNode) -> Type:
@@ -230,7 +202,7 @@ class TypeInferencer:
 
 class Compiler:
     def __init__(self, env=None, func_env=None, compatibility=None, show_header=True):
-        self.compatibility = compatibility or DefaultCompatibility()
+        self.compatibility = compatibility or NoCompatibility()
         self.func_env = func_env if func_env is not None else {}
         self.env = env if env is not None else {}
         self.typing_env = self.env.setdefault('::types::', {})

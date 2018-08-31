@@ -10,16 +10,21 @@ class Library(metaclass=ABCMeta):
         factory = self.get_arbitrary_factory(name)
         the_config = self.global_configuration.get(name, {})
         the_config.update(config)
-        return factory(self.random_funcs, name, config)
+        return factory(self.random_funcs, the_config)
+
+    @classmethod
+    @abstractmethod
+    def compatibility(cls):
+        raise NotImplementedError
 
     @abstractmethod
     def get_arbitrary_factory(self, name):
         raise NotImplementedError
 
-    @property
+    @classmethod
     @abstractmethod
-    def upperbounds(self):
-        """This property should return an iterable whose elements are upperbound chains.
+    def upperbounds(cls):
+        """This classmethod should return an iterable whose elements are upperbound chains.
 
         An upperbound chain is an iterable of `str` objects representing type names.
         It represents a path in the compatibility graph.

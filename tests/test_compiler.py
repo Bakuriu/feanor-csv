@@ -313,7 +313,7 @@ class TestTypeInferencer(unittest.TestCase):
 
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
-        self.compatibility = DefaultCompatibility()
+        self.compatibility = NoCompatibility()
 
     def test_identical_simple_types_are_compatible(self):
         self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), SimpleType('int')))

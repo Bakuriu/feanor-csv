@@ -50,7 +50,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_one_column(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '#int'])
+        schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '#int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
@@ -60,7 +60,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_two_columns(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '#int', '-c', 'B', '#int'])
+        schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '#int', '-c', 'B', '#int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
         arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
@@ -75,7 +75,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_two_identical_columns(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '#int', '-c', 'B', '@A'])
+        schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '#int', '-c', 'B', '@A'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -96,7 +96,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_third_column_sum_of_two_columns(self, _):
-        schema, _, size_dict = parse_arguments(
+        schema,  _, _, size_dict = parse_arguments(
             ['-n', '5', 'cmdline', '-c', 'A', '#int', '-c', 'B', '#int', '-c', 'C', '@A+@B'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B', 'C'), schema.columns)
@@ -120,7 +120,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_complex_schema_using_alias(self, _):
-        schema, _, size_dict = parse_arguments(
+        schema, _, _, size_dict = parse_arguments(
             ['-n', '5', 'options', '-c', 'A', '#int', '-c', 'B', '#int', '-c', 'C', '@A+@B'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B', 'C'), schema.columns)
@@ -144,7 +144,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_one_column_using_expr(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '#int'])
+        schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '#int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
@@ -154,7 +154,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_two_columns_using_expr(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B', '#int . #int'])
+        schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B', '#int . #int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
         arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
@@ -169,7 +169,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_two_identical_columns_using_expr(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B', 'let A := #int in @A . @A'])
+        schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B', 'let A := #int in @A . @A'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -187,7 +187,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_columns_with_config(self, _):
-        schema, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '#int{"min":10}'])
+        schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '#int{"min":10}'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -199,7 +199,7 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('sys.exit')
     def test_can_create_schema_with_third_column_sum_of_two_columns_using_expr(self, _):
-        schema, _, size_dict = parse_arguments(
+        schema, _, _, size_dict = parse_arguments(
             ['-n', '5', 'expr', '--columns', 'A,B,C', '(#int)=A . (#int)=B . (@A+@B)'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B', 'C'), schema.columns)

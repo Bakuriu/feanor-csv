@@ -5,14 +5,15 @@ import argparse
 from itertools import starmap
 
 from . import __version__
-from .dsl.compiler import Compiler, BuiltInCompatibility, DefaultCompatibility
+from .dsl.compiler import Compiler, NoCompatibility
+from .builtin import BuiltInCompatibility, BuiltInLibrary
 from .dsl import get_parser as dsl_get_parser
 from .engine import generate_data
 
 
 def main():
-    schema, output_file, size_dict = parse_arguments()
-    generate_data(schema, output_file, **size_dict)
+    schema, library, output_file, size_dict = parse_arguments()
+    generate_data(schema, library, output_file, **size_dict)
 
 
 def parse_arguments(args=None):
@@ -26,7 +27,9 @@ def parse_arguments(args=None):
         sys.stderr.write('{}: error: {}\n'.format(parser.prog, str(e)))
         sys.exit(2)
     else:
-        return schema, args.output_file, size_dict
+        # TODO: allow user to override this from cmdline
+        library = BuiltInLibrary(args.global_configuration, args.random_module)
+        return schema, library, args.output_file, size_dict
 
 
 def get_schema_and_size_params(args):
@@ -51,6 +54,8 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.', dest='show_header')
     parser.add_argument('--compatibility', default='builtin', help='The compatibility to use.')
+    parser.add_argument('--global-configuration', default={}, help='The global configuration for arbitraries.')
+    parser.add_argument('--random-module', default='random', help='The random module to be used to generate random data.')
     parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     size_options = parser.add_mutually_exclusive_group(required=True)
     size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV', metavar='N')
@@ -89,7 +94,7 @@ def make_schema_from_expression(expression, columns_names, show_header, compatib
     if compatibility == 'builtin':
         compatibility = BuiltInCompatibility()
     elif compatibility == 'none':
-        compatibility = DefaultCompatibility()
+        compatibility = NoCompatibility()
     else:
         raise ValueError('Invalid compatibility: {!r}'.format(compatibility))
     return Compiler(show_header=show_header, compatibility=compatibility).compile(parser.parse(expression), column_names=columns_names)
