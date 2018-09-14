@@ -99,8 +99,15 @@ def p_factor(p):
 
 
 def p_type(p):
-    """type : '%' IDENTIFIER config"""
-    p[0] = TypeNameNode.of(p[2], p[3])
+    """type : '%' IDENTIFIER opt_arbitrary config"""
+    p[0] = TypeNameNode.of(p[2], p[3], p[4])
+
+
+def p_opt_arbitrary(p):
+    """opt_arbitrary : ':' IDENTIFIER
+                     | empty
+    """
+    p[0] = p[2] if len(p) == 3 else 'default'
 
 
 def p_reference(p):
@@ -145,6 +152,7 @@ def p_opt_literal(p):
 
 def p_literal(p):
     """literal : dict_literal
+               | list_literal
                | INTEGER
                | FLOAT
                | STRING
@@ -156,6 +164,24 @@ def p_dict_literal(p):
     """dict_literal : '{' keypair_list '}'"""
     p[2].reverse()
     p[0] = LiteralNode(dict(p[2])).to_plain_object()
+
+
+def p_list_literal(p):
+    """list_literal : '[' literal_list ']'"""
+    p[2].reverse()
+    p[0] = LiteralNode(p[2]).to_plain_object()
+
+
+def p_literal_list(p):
+    """literal_list : empty
+                    | literal
+                    | literal ',' literal_list
+    """
+    if len(p) > 2:
+        p[0] = p[3]
+        p[0].append(p[1])
+    else:
+        p[0] = [p[1]] if p[1] else []
 
 
 def p_keypair_list(p):

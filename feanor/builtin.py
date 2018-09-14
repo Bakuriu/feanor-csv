@@ -4,10 +4,10 @@ import string
 from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
 from itertools import cycle, chain
 
+from .arbitrary import Arbitrary
 from .dsl.compiler import SimpleCompatibility
 from .library import Library
 from .util import consecutive_pairs
-from .arbitrary import Arbitrary
 
 __all__ = [
     'Arbitrary',
@@ -253,21 +253,28 @@ class BuiltInLibrary(Library):
             'fixed': FixedArbitrary,
             'cycle': CyclingArbitrary,
         }
+
     def get_arbitrary_factory(self, name):
         return self._builtin_factories[name]
 
-    @classmethod
-    def upperbounds(cls):
+    def upperbounds(self):
         return {
             ('int', 'float'),
             ('alpha', 'alnum', 'string'),
         }
 
-    @classmethod
-    def compatibility(cls):
+    def compatibility(self):
         compatibility = BuiltInCompatibility()
-        compatibility.add_upperbounds(cls.upperbounds())
+        compatibility.add_upperbounds(self.upperbounds())
+        compatibility.add_upperbounds(
+            chain.from_iterable(map(lambda type_chain: zip(type_chain, type_chain), self.upperbounds())))
         return compatibility
+
+    def env(self):
+        return {}
+
+    def func_env(self):
+        return {}
 
 
 class BuiltInCompatibility(SimpleCompatibility):
@@ -277,8 +284,6 @@ class BuiltInCompatibility(SimpleCompatibility):
         self._upperbound_pairs = set()
 
     def _simple_type_upperbound(self, first_type, second_type):
-        if first_type == second_type:
-            return first_type
         # TODO: test this
         first_type_name = first_type.name
         second_type_name = second_type.name

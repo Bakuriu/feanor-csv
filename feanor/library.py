@@ -1,4 +1,7 @@
+import random
 from abc import ABCMeta, abstractmethod
+
+from .dsl.compiler import SimpleCompatibility
 
 
 class Library(metaclass=ABCMeta):
@@ -12,19 +15,25 @@ class Library(metaclass=ABCMeta):
         the_config.update(config)
         return factory(self.random_funcs, the_config)
 
-    @classmethod
     @abstractmethod
     def compatibility(cls):
+        raise NotImplementedError
+
+    @abstractmethod
+    def env(cls):
+        raise NotImplementedError
+
+    @abstractmethod
+    def func_env(cls):
         raise NotImplementedError
 
     @abstractmethod
     def get_arbitrary_factory(self, name):
         raise NotImplementedError
 
-    @classmethod
     @abstractmethod
     def upperbounds(cls):
-        """This classmethod should return an iterable whose elements are upperbound chains.
+        """This method should return an iterable whose elements are upperbound chains.
 
         An upperbound chain is an iterable of `str` objects representing type names.
         It represents a path in the compatibility graph.
@@ -38,3 +47,22 @@ class Library(metaclass=ABCMeta):
 
         """
         raise NotImplementedError
+
+
+class EmptyLibrary(Library):
+    def __init__(self):
+        super().__init__({}, random)
+    def compatibility(cls):
+        return SimpleCompatibility(lambda x, y: x)
+
+    def env(cls):
+        return {}
+
+    def func_env(cls):
+        return {}
+
+    def get_arbitrary_factory(self, name):
+        return lambda name: None
+
+    def upperbounds(cls):
+        return set()

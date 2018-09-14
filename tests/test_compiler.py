@@ -1,14 +1,17 @@
 import unittest
 
+from feanor.builtin import BuiltInCompatibility, BuiltInLibrary
 from feanor.dsl.ast import *
 from feanor.dsl.compiler import *
 from feanor.dsl.types import *
+from feanor.library import EmptyLibrary
 from feanor.schema import *
 
 
 class TestTypeInferencer(unittest.TestCase):
     def setUp(self):
-        self.inferencer = TypeInferencer()
+        self.library = BuiltInLibrary({}, random)
+        self.inferencer = TypeInferencer(self.library.compatibility())
 
     def test_can_infer_type_of_a_type_name_node(self):
         got = self.inferencer.infer(TypeNameNode.of('int'))
@@ -21,14 +24,14 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_a_reference_node(self):
         expected_type = SimpleType('int')
-        inferencer = TypeInferencer(env={'a': expected_type})
+        inferencer = TypeInferencer(self.library.compatibility(), env={'a': expected_type})
         got = inferencer.infer(ReferenceNode.of('a'))
         self.assertEqual(expected_type, got)
 
     def test_inferring_type_of_reference_node_sets_info_value(self):
         expected_type = SimpleType('int')
         tree = ReferenceNode.of('a')
-        inferencer = TypeInferencer(env={'a': expected_type})
+        inferencer = TypeInferencer(self.library.compatibility(), env={'a': expected_type})
         inferencer.infer(tree)
         self.assertEqual({'type': expected_type}, tree.info)
 
@@ -36,7 +39,7 @@ class TestTypeInferencer(unittest.TestCase):
         expected_type = SimpleType('int')
         arg_type = SimpleType('float')
         env = {'a': arg_type}
-        inferencer = TypeInferencer(env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(self.library.compatibility(), env=env, func_env={'func': ([arg_type], expected_type)})
         got = inferencer.infer(CallNode.of('func', [ReferenceNode.of('a')]))
         self.assertEqual(expected_type, got)
 
@@ -46,10 +49,19 @@ class TestTypeInferencer(unittest.TestCase):
         env = {'a': arg_type}
         arg_node = ReferenceNode.of('a')
         tree = CallNode.of('func', [arg_node])
-        inferencer = TypeInferencer(env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(self.library.compatibility(), env=env, func_env={'func': ([arg_type], expected_type)})
         inferencer.infer(tree)
         self.assertEqual({'type': arg_type}, arg_node.info)
         self.assertEqual({'type': expected_type}, tree.info)
+
+
+    def test_can_infer_type_of_call_when_called_with_compatible_argument(self):
+        expected_type = SimpleType('int')
+        arg_type = SimpleType('float')
+        env = {'a': SimpleType('int')}
+        inferencer = TypeInferencer(self.library.compatibility(), env=env, func_env={'func': ([arg_type], expected_type)})
+        got = inferencer.infer(CallNode.of('func', [ReferenceNode.of('a')]))
+        self.assertEqual(expected_type, got)
 
     def test_can_infer_type_of_merge(self):
         inferencer = TypeInferencer(compatibility=SimpleCompatibility(upperbound=lambda x, y: y))
@@ -113,8 +125,7 @@ class TestTypeInferencer(unittest.TestCase):
         left_inner_choice_type = ChoiceType([left_arg_type, right_arg_type])
         right_inner_choice_type = ChoiceType([left_arg_type_2, right_arg_type_2])
         expected_type = ChoiceType([left_arg_type, right_arg_type, left_arg_type_2, right_arg_type_2])
-        inferencer = TypeInferencer()
-        inferencer.infer(tree)
+        self.inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
         self.assertEqual({'type': left_arg_type_2}, left_arg_2.info)
@@ -136,8 +147,7 @@ class TestTypeInferencer(unittest.TestCase):
         left_arg_type = SimpleType('int')
         right_arg_type = SimpleType('float')
         expected_type = ParallelType([left_arg_type, right_arg_type])
-        inferencer = TypeInferencer(compatibility=lambda x, y: True)
-        inferencer.infer(tree)
+        self.inferencer.infer(tree)
         self.assertEqual({'type': left_arg_type}, left_arg.info)
         self.assertEqual({'type': right_arg_type}, right_arg.info)
         self.assertEqual({'type': expected_type}, tree.info)
@@ -156,7 +166,7 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_simple_projection(self):
         env = {'a': ParallelType([SimpleType('int'), SimpleType('float'), SimpleType('string')])}
-        inferencer = TypeInferencer(env=env)
+        inferencer = TypeInferencer(self.library.compatibility(), env=env)
         got = inferencer.infer(ProjectionNode.of(ReferenceNode.of('a'), 1))
         self.assertEqual(SimpleType('float'), got)
 
@@ -165,7 +175,7 @@ class TestTypeInferencer(unittest.TestCase):
         env = {'a': expr_type}
         expr = ReferenceNode.of('a')
         tree = ProjectionNode.of(expr, 1)
-        inferencer = TypeInferencer(env=env)
+        inferencer = TypeInferencer(self.library.compatibility(), env=env)
         inferencer.infer(tree)
         expected_type = SimpleType('float')
         self.assertEqual({'type': expr_type}, expr.info)
@@ -173,7 +183,7 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_can_infer_type_of_projection_with_multiple_indices(self):
         env = {'a': ParallelType([SimpleType('int'), SimpleType('float'), SimpleType('string')])}
-        inferencer = TypeInferencer(env=env)
+        inferencer = TypeInferencer(self.library.compatibility(), env=env)
         got = inferencer.infer(ProjectionNode.of(ReferenceNode.of('a'), 1, 2))
         self.assertEqual(ParallelType([SimpleType('float'), SimpleType('string')]), got)
 
@@ -182,7 +192,7 @@ class TestTypeInferencer(unittest.TestCase):
         env = {'a': expr_type}
         expr = ReferenceNode.of('a')
         tree = ProjectionNode.of(expr, 1, 2)
-        inferencer = TypeInferencer(env=env)
+        inferencer = TypeInferencer(self.library.compatibility(), env=env)
         inferencer.infer(tree)
         expected_type = ParallelType([SimpleType('float'), SimpleType('string')])
         self.assertEqual({'type': expr_type}, expr.info)
@@ -225,87 +235,91 @@ class TestTypeInferencer(unittest.TestCase):
         self.assertEqual({'type': expected_type}, tree.info)
 
     def test_can_infer_type_of_let_expression(self):
-        inferencer = TypeInferencer()
-        got = inferencer.infer(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
+        got = self.inferencer.infer(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
         self.assertEqual(SimpleType('int'), got)
 
     def test_inferring_type_of_let_expression_sets_info_value(self):
         assignment = AssignNode.of(TypeNameNode.of('int'), 'a')
         reference = ReferenceNode.of('a')
-        inferencer = TypeInferencer()
         tree = LetNode([assignment], reference)
-        inferencer.infer(tree)
+        self.inferencer.infer(tree)
         self.assertEqual({'type': SimpleType('int')}, assignment.info)
         self.assertEqual({'type': SimpleType('int')}, reference.info)
         self.assertEqual({'type': SimpleType('int')}, tree.info)
 
     def test_raises_error_when_merging_incompatible_types(self):
         with self.assertRaises(TypeError):
-            self.inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('float')))
+            self.inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('string')))
 
     def test_raises_error_when_merging_incompatible_types_with_more_columns(self):
         left_expr = ReferenceNode.of('a')
         right_expr = ReferenceNode.of('b')
-        left_ty = ParallelType([SimpleType('int'), SimpleType('float')])
+        left_ty = ParallelType([SimpleType('int'), SimpleType('string')])
         right_ty = ParallelType([SimpleType('int'), SimpleType('int')])
         env = {
             'a': left_ty,
             'b': right_ty,
         }
         with self.assertRaises(TypeError):
-            inferencer = TypeInferencer(env=env)
+            inferencer = TypeInferencer(self.library.compatibility(), env=env)
             inferencer.infer(BinaryOpNode.of('+', left_expr, right_expr))
 
     def test_raises_error_when_reassigning_same_name(self):
         # assign inside assign
         with self.assertRaises(TypeError):
-            inferencer = TypeInferencer()
+            inferencer = TypeInferencer(self.library.compatibility())
             inferencer.infer(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'a'))
         # let inside assign
         with self.assertRaises(TypeError):
-            inferencer = TypeInferencer()
+            inferencer = TypeInferencer(self.library.compatibility())
             inferencer.infer(AssignNode.of(LetNode.of([('a', TypeNameNode.of('int'))], TypeNameNode.of('int')), 'a'))
         # assign inside let
         with self.assertRaises(TypeError):
-            inferencer = TypeInferencer()
+            inferencer = TypeInferencer(self.library.compatibility())
             inferencer.infer(LetNode.of([('a', AssignNode.of(TypeNameNode.of('int'), 'a'))], TypeNameNode.of('int')))
         # let inside let
         with self.assertRaises(TypeError):
-            inferencer = TypeInferencer()
+            inferencer = TypeInferencer(self.library.compatibility())
             inferencer.infer(LetNode.of([('a', LetNode.of([('a', TypeNameNode.of('int'))], TypeNameNode.of('float')))], TypeNameNode.of('int')))
 
     def test_raises_error_if_projecting_on_a_non_composite_node(self):
         with self.assertRaises(TypeError):
-            inferencer = TypeInferencer()
-            inferencer.infer(ProjectionNode.of(TypeNameNode.of('int'), (0, 1)))
+            self.inferencer.infer(ProjectionNode.of(TypeNameNode.of('int'), (0, 1)))
 
     def test_raises_error_if_projecting_indices_outside_output_dimension(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer()
-            inferencer.infer(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 2))
+            self.inferencer.infer(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 2))
         self.assertEqual('Indices out of range for projection', str(ctx.exception))
 
     def test_raises_error_if_function_called_with_incorrect_number_of_arguments(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer = TypeInferencer(self.library.compatibility(), func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
             inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('int'), TypeNameNode.of('float')]))
         self.assertEqual('Incorrect number of arguments to function ciao: 2 instead of 1', str(ctx.exception))
 
-    def test_raises_error_if_function_called_with_incompatible_argument_type(self):
+    def test_raises_error_if_function_called_with_unassignable_argument_type(self):
+        # FIXME: compatibility is symmetric. So here we have no way of properly type checking a function call
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer = TypeInferencer(self.library.compatibility(), func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
             inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('float')]))
         self.assertEqual('Incompatible types for argument 0 of ciao: float instead of int', str(ctx.exception))
 
+    def test_raises_error_if_function_called_with_incompatible_argument_type(self):
+        with self.assertRaises(TypeError) as ctx:
+            inferencer = TypeInferencer(self.library.compatibility(), func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('string')]))
+        self.assertEqual('Incompatible types for argument 0 of ciao: string instead of int', str(ctx.exception))
+
     def test_raises_error_if_merge_on_incompatible_parallel_types(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(env={'a': ParallelType([SimpleType('int')]), 'b': ParallelType([SimpleType('float')])})
+            inferencer = TypeInferencer(self.library.compatibility(),
+                env={'a': ParallelType([SimpleType('int')]), 'b': ParallelType([SimpleType('string')])})
             inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
-        self.assertEqual("Incompatible types for merge: Parallel(int) and Parallel(float)", str(ctx.exception))
+        self.assertEqual("Incompatible types for merge: Parallel(int) and Parallel(string)", str(ctx.exception))
 
     def test_raises_error_if_merge_on_incompatible_types(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(env={'a': ParallelType([SimpleType('int')]), 'b': SimpleType('float')})
+            inferencer = TypeInferencer(self.library.compatibility(), env={'a': ParallelType([SimpleType('int')]), 'b': SimpleType('float')})
             inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
         self.assertEqual("Incompatible types for merge: Parallel(int) and float", str(ctx.exception))
 
@@ -313,7 +327,8 @@ class TestTypeInferencer(unittest.TestCase):
 
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
-        self.compatibility = NoCompatibility()
+        self.compatibility = BuiltInLibrary({}, random).compatibility()
+        self.compatibility.add_upperbounds({('int', 'float')})
 
     def test_identical_simple_types_are_compatible(self):
         self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), SimpleType('int')))
@@ -323,13 +338,21 @@ class TestDefaultCompatibility(unittest.TestCase):
             self.assertTrue(
                 self.compatibility.is_compatible(cls(2 * [SimpleType('int')]), cls(2 * [SimpleType('int')])))
 
-    def test_two_non_identical_simple_types_are_not_compatible(self):
-        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), SimpleType('float')))
+    def test_two_non_compatible_simple_types_are_not_compatible(self):
+        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), SimpleType('string')))
 
-    def test_composite_types_of_same_class_with_one_different_type_are_not_compatible(self):
+    def test_two_different_compatible_simple_types_are_compatible(self):
+        self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), SimpleType('float')))
+
+    def test_composite_types_of_same_class_with_one_different_compatible_type_are_compatible(self):
+        for cls in (ChoiceType, ParallelType):
+            self.assertTrue(
+                self.compatibility.is_compatible(cls([SimpleType('int')] * 2), cls([SimpleType('float')] * 2)))
+
+    def test_composite_types_of_same_class_with_one_different_non_compatible_type_are_not_compatible(self):
         for cls in (ChoiceType, ParallelType):
             self.assertFalse(
-                self.compatibility.is_compatible(cls([SimpleType('int')] * 2), cls([SimpleType('float')] * 2)))
+                self.compatibility.is_compatible(cls([SimpleType('int')] * 2), cls([SimpleType('string')] * 2)))
 
     def test_composite_types_of_different_class_with_one_identical_type_are_not_compatible(self):
         arg = SimpleType('int')
@@ -365,7 +388,7 @@ class TestDefaultCompatibility(unittest.TestCase):
 
 class TestCompiler(unittest.TestCase):
     def setUp(self):
-        self.compiler = Compiler()
+        self.compiler = Compiler(EmptyLibrary())
 
     def test_can_compile_a_type_name_node_with_no_config(self):
         schema = Schema()
@@ -393,11 +416,11 @@ class TestCompiler(unittest.TestCase):
         schema.add_arbitrary('arbitrary#0', type='int', config={'min': 10})
         schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
-        got = self.compiler.compile(TypeNameNode.of('int', {'min': 10}))
+        got = self.compiler.compile(TypeNameNode.of('int', config={'min': 10}))
         self.assertEqual(schema, got)
 
     def test_compiling_a_type_name_node_with_config_sets_info_value(self):
-        tree = TypeNameNode.of('int', {'min': 10})
+        tree = TypeNameNode.of('int', config={'min': 10})
         self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int'),
@@ -730,7 +753,7 @@ class TestCompiler(unittest.TestCase):
         schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
 
-        got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int', {'min': 10}))], ReferenceNode.of('a')))
+        got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int', config={'min': 10}))], ReferenceNode.of('a')))
         self.assertEqual(schema, got)
 
     def test_when_compiling_multiple_expressions_number_of_outputs_per_expression_is_taken_into_account(self):

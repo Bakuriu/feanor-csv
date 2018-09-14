@@ -1,13 +1,15 @@
+import argparse
+import ast
+import csv
 import io
 import sys
-import csv
-import argparse
+from importlib import import_module
 from itertools import starmap
 
 from . import __version__
-from .dsl.compiler import Compiler, NoCompatibility
-from .builtin import BuiltInCompatibility, BuiltInLibrary
+from .builtin import BuiltInLibrary
 from .dsl import get_parser as dsl_get_parser
+from .dsl.compiler import Compiler
 from .engine import generate_data
 
 
@@ -21,22 +23,21 @@ def parse_arguments(args=None):
 
     args = parser.parse_args(args=args)
     try:
-        schema, size_dict = get_schema_and_size_params(args)
-    except (ValueError,TypeError) as e:
+        schema, library, size_dict = get_schema_size_and_library_params(args)
+    except (ValueError, TypeError) as e:
         parser.print_usage(sys.stderr)
         sys.stderr.write('{}: error: {}\n'.format(parser.prog, str(e)))
         sys.exit(2)
     else:
-        # TODO: allow user to override this from cmdline
-        library = BuiltInLibrary(args.global_configuration, args.random_module)
         return schema, library, args.output_file, size_dict
 
 
-def get_schema_and_size_params(args):
+def get_schema_size_and_library_params(args):
+    library = get_library(args.library, args.global_configuration, args.random_module)
     if args.schema_definition_type in ('cmdline', 'options', 'opts'):
-        schema = make_schema_cmdline(args.columns, args.expressions_defined, args.show_header, args.compatibility)
+        schema = make_schema_cmdline(args.columns, args.expressions_defined, args.show_header, library)
     elif args.schema_definition_type == 'expr':
-        schema = make_schema_expr(args.schema, _parse_columns(args.columns_names), args.show_header, args.compatibility)
+        schema = make_schema_expr(args.schema, _parse_columns(args.columns_names), args.show_header, library)
     else:
         raise ValueError('Invalid subcommand {!r}'.format(args.schema_definition_type))
 
@@ -47,57 +48,62 @@ def get_schema_and_size_params(args):
         size_dict['number_of_rows'] = args.num_rows
     if args.num_bytes is not None:
         size_dict['byte_count'] = args.num_bytes
-    return schema, size_dict
+    return schema, library, size_dict
 
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.', dest='show_header')
-    parser.add_argument('--compatibility', default='builtin', help='The compatibility to use.')
-    parser.add_argument('--global-configuration', default={}, help='The global configuration for arbitraries.')
-    parser.add_argument('--random-module', default='random', help='The random module to be used to generate random data.')
+    parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.',
+                        dest='show_header')
+    parser.add_argument('--library', default='builtin', help='The library to use.')
+    parser.add_argument('--global-configuration', default={}, type=_parse_global_configuration,
+                        help='The global configuration for arbitraries.')
+    parser.add_argument('--random-module', default='random', type=import_module,
+                        help='The random module to be used to generate random data.')
     parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     size_options = parser.add_mutually_exclusive_group(required=True)
     size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV', metavar='N')
-    size_options.add_argument('-b', '--num-bytes', type=int, help='The approximate number of bytes of the produced CSV', metavar='N')
+    size_options.add_argument('-b', '--num-bytes', type=int, help='The approximate number of bytes of the produced CSV',
+                              metavar='N')
     size_options.add_argument('--stream-mode')
 
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument('output_file', nargs='?', help='The output file name.', metavar='OUTPUT-FILE',
-                        default=sys.stdout, type=argparse.FileType('w'))
+                               default=sys.stdout, type=argparse.FileType('w'))
 
     schema_subparsers = parser.add_subparsers(title='Schema definition', help='Commands to define a CSV schema.',
                                               dest='schema_definition_type')
-    simple_schema_cmdline = schema_subparsers.add_parser('cmdline', aliases=['opts', 'options'], parents=[common_parser])
+    simple_schema_cmdline = schema_subparsers.add_parser('cmdline', aliases=['opts', 'options'],
+                                                         parents=[common_parser])
 
-    simple_schema_cmdline.add_argument('-c', '--column', nargs=2, help='Add a column with the given name.', dest='columns',
-                        action='append', metavar=('NAME', 'EXPR'), required=True)
-    simple_schema_cmdline.add_argument('-d', '--define', nargs=2, help='Define a Feanor expression with the given name and type.',
-                        dest='expressions_defined', action='append', metavar=('NAME', 'EXPR'), default=[])
+    simple_schema_cmdline.add_argument('-c', '--column', nargs=2, help='Add a column with the given name.',
+                                       dest='columns',
+                                       action='append', metavar=('NAME', 'EXPR'), required=True)
+    simple_schema_cmdline.add_argument('-d', '--define', nargs=2,
+                                       help='Define a Feanor expression with the given name and type.',
+                                       dest='expressions_defined', action='append', metavar=('NAME', 'EXPR'),
+                                       default=[])
 
     expr_schema_parser = schema_subparsers.add_parser('expr', parents=[common_parser])
     expr_schema_parser.add_argument('schema', help='The expression defining the schema', metavar='SCHEMA_EXPR')
-    expr_schema_parser.add_argument('-c', '--columns', dest='columns_names', help='A CSV comma-separated header line.', metavar='NAMES')
+    expr_schema_parser.add_argument('-c', '--columns', dest='columns_names', help='A CSV comma-separated header line.',
+                                    metavar='NAMES')
 
     return parser
 
 
-def make_schema_cmdline(columns, expressions_defined, show_header, compatibility):
+def make_schema_cmdline(columns, expressions_defined, show_header, library):
     columns_names, expression = get_definitions_and_column_names_for_cmdline(columns, expressions_defined)
-    return make_schema_from_expression(expression, columns_names, show_header, compatibility)
+    return make_schema_from_expression(expression, columns_names, show_header, library)
 
-def make_schema_expr(expression, columns_names, show_header, compatibility):
-    return make_schema_from_expression(expression, columns_names, show_header, compatibility)
 
-def make_schema_from_expression(expression, columns_names, show_header, compatibility):
+def make_schema_expr(expression, columns_names, show_header, library):
+    return make_schema_from_expression(expression, columns_names, show_header, library)
+
+
+def make_schema_from_expression(expression, columns_names, show_header, library):
     parser = dsl_get_parser()
-    if compatibility == 'builtin':
-        compatibility = BuiltInCompatibility()
-    elif compatibility == 'none':
-        compatibility = NoCompatibility()
-    else:
-        raise ValueError('Invalid compatibility: {!r}'.format(compatibility))
-    return Compiler(show_header=show_header, compatibility=compatibility).compile(parser.parse(expression), column_names=columns_names)
+    return Compiler(library, show_header=show_header).compile(parser.parse(expression), column_names=columns_names)
 
 
 def get_definitions_and_column_names_for_cmdline(columns, expressions_defined):
@@ -112,11 +118,22 @@ def make_schema_let_expression(definitions, col_names):
     return 'let {} in ({})'.format(definitions, '.'.join('@' + name for name in col_names))
 
 
+def get_library(library_name, global_configuration, random_funcs):
+    if library_name == 'builtin':
+        return BuiltInLibrary(global_configuration, random_funcs)
+    raise ValueError('Invalid library: {!r}'.format(library_name))
+
+
 def _parse_columns(columns):
     in_file = io.StringIO(columns)
     reader = csv.reader(in_file, delimiter=',')
     return next(reader)
 
+def _parse_global_configuration(configuration):
+    value = ast.literal_eval(configuration)
+    if not isinstance(value, dict):
+        raise argparse.ArgumentTypeError
+    return value
 
 if __name__ == '__main__':
     main()

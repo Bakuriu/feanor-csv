@@ -81,12 +81,12 @@ class Config(AstNode):
 
 
 class TypeNameNode(ExprNode):
-    def __init__(self, identifier: Identifier, config: Config):
-        super().__init__(identifier, config)
+    def __init__(self, identifier: Identifier, arbitrary: Identifier, config: Config):
+        super().__init__(identifier, arbitrary, config)
 
     @classmethod
-    def of(cls, name, config=None):
-        return cls(Identifier.of(name), Config.of(config))
+    def of(cls, name: str, arbitrary: str='default', config=None):
+        return cls(Identifier.of(name), Identifier.of(arbitrary), Config.of(config))
 
 
 class ReferenceNode(ExprNode):
@@ -121,10 +121,12 @@ class LiteralNode(AstNode):
         return super().__eq__(other) and self.literal_type == other.literal_type and self.literal == other.literal
 
     def to_plain_object(self):
+        def maybe_to_plain_object(elem):
+            return elem.to_plain_object() if isinstance(elem, LiteralNode) else elem
         if isinstance(self.literal, (list, set)):
-            return self.literal_type(elem.to_plain_object() for elem in self.literal)
+            return self.literal_type(map(maybe_to_plain_object, self.literal))
         elif isinstance(self.literal, dict):
-            return {key: value.to_plain_object() for key, value in self.literal.items()}
+            return {key: maybe_to_plain_object(value) for key, value in self.literal.items()}
         else:
             return self.literal
 

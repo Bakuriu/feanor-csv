@@ -5,7 +5,7 @@ from .types import *
 from ..schema import *
 from ..util import overloaded
 
-__all__ = ['SimpleCompatibility', 'NoCompatibility', 'TypeInferencer', 'Compiler']
+__all__ = ['SimpleCompatibility', 'TypeInferencer', 'Compiler']
 
 
 class Compatibility(metaclass=ABCMeta):
@@ -21,6 +21,13 @@ class Compatibility(metaclass=ABCMeta):
         else:
             return True
 
+    def is_assignable_to(self, first_type: Type, target_type: Type) -> bool:
+        try:
+            upperbound = self.get_upperbound(first_type, target_type)
+            return upperbound == target_type
+        except TypeError:
+            return False
+
 
 class SimpleCompatibility(Compatibility):
 
@@ -28,9 +35,6 @@ class SimpleCompatibility(Compatibility):
         self._get_simple_type_upperbound = upperbound
 
     def get_upperbound(self, first_type: Type, second_type: Type) -> Type:
-        if first_type == second_type:
-            return first_type
-
         first_simple = isinstance(first_type, SimpleType)
         second_simple = isinstance(second_type, SimpleType)
 
@@ -77,22 +81,11 @@ class SimpleCompatibility(Compatibility):
         return ChoiceType(self.get_upperbound(t, other) for t in main.types)
 
 
-class NoCompatibility(SimpleCompatibility):
-
-    def __init__(self):
-        super().__init__(upperbound=self._simple_type_upperbound)
-
-    def _simple_type_upperbound(self, first_type, second_type):
-        if first_type == second_type:
-            return first_type
-        raise TypeError(f'type {first_type} is incompatible with type {second_type}')
-
-
 class TypeInferencer:
-    def __init__(self, env=None, func_env=None, compatibility=None):
+    def __init__(self, compatibility, env=None, func_env=None):
+        self.compatibility = compatibility
         self.env = env if env is not None else {}
         self.func_env = func_env if func_env is not None else {}
-        self.compatibility = compatibility or NoCompatibility()
 
     @overloaded
     def infer(self, tree: ExprNode) -> Type:
@@ -145,7 +138,7 @@ class TypeInferencer:
                 f'Incorrect number of arguments to function {func_name}: '
                 f'{len(inferred_arg_types)} instead of {len(expected_arg_types)}')
         for i, (arg_type, expected_arg_type) in enumerate(zip(inferred_arg_types, expected_arg_types)):
-            if not self.compatibility.is_compatible(arg_type, expected_arg_type):
+            if not self.compatibility.is_assignable_to(arg_type, expected_arg_type):
                 raise TypeError(
                     f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
         tree.info['type'] = inferred_type
@@ -199,12 +192,11 @@ class TypeInferencer:
 
 
 class Compiler:
-    def __init__(self, env=None, func_env=None, compatibility=None, show_header=True):
-        self.compatibility = compatibility or NoCompatibility()
-        self.func_env = func_env if func_env is not None else {}
-        self.env = env if env is not None else {}
-        self.typing_env = self.env.setdefault('::types::', {})
-        self._inferencer = TypeInferencer(env=self.typing_env, func_env=self.func_env, compatibility=self.compatibility)
+    def __init__(self, library, show_header=True):
+        self.compatibility = library.compatibility()
+        self.func_env = library.func_env()
+        self.env = library.env()
+        self._inferencer = TypeInferencer(self.compatibility, self.env.get('::types::'), self.func_env.get('::types::'))
         self._schema = Schema(show_header=show_header)
         self._cur_arbitrary_id = 0
         self._cur_transformer_id = 0
@@ -258,9 +250,9 @@ class Compiler:
 
     @visitor.register(TypeNameNode)
     def _(self, cur_node: TypeNameNode, *children_values):
-        type_name, config = children_values
+        type_name, arbitrary, config = children_values
         name = self._new_arbitrary_name()
-        self._schema.add_arbitrary(name, type=type_name, config=config)
+        self._schema.add_arbitrary(name, type=arbitrary if arbitrary != 'default' else type_name, config=config)
         cur_node.info['assigned_name'] = None
         cur_node.info['in_names'] = [name]
         cur_node.info['out_names'] = [name]
