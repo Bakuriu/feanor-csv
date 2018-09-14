@@ -99,7 +99,7 @@ def p_factor(p):
 
 
 def p_type(p):
-    """type : '#' IDENTIFIER config"""
+    """type : '%' IDENTIFIER config"""
     p[0] = TypeNameNode.of(p[2], p[3])
 
 

@@ -8,7 +8,7 @@ from feanor.schema import IdentityTransformer
 class TestMakeSchemaCmdline(unittest.TestCase):
 
     def test_can_make_schema_with_a_single_column(self):
-        schema = make_schema_cmdline([('A', '#int')], [], show_header=True, compatibility='none')
+        schema = make_schema_cmdline([('A', '%int')], [], show_header=True, compatibility='none')
         self.assertTrue(schema.show_header)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.arbitraries))
@@ -22,7 +22,7 @@ class TestMakeSchemaCmdline(unittest.TestCase):
         self.assertEqual(expected_transformer_copy, schema.transformers[1])
 
     def test_can_make_schema_with_multiple_columns(self):
-        schema = make_schema_cmdline([('A', '#int'), ('B', '#int')], [], show_header=True, compatibility='none')
+        schema = make_schema_cmdline([('A', '%int'), ('B', '%int')], [], show_header=True, compatibility='none')
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
@@ -44,7 +44,7 @@ class TestMakeSchemaCmdline(unittest.TestCase):
         self.assertEqual(expected_transformer_B_copy, schema.transformers[3])
 
     def test_can_make_schema_with_transformers(self):
-        schema = make_schema_cmdline([('A', '@bob'), ('B', '#int')], [('bob', '#int')], show_header=True,
+        schema = make_schema_cmdline([('A', '@bob'), ('B', '%int')], [('bob', '%int')], show_header=True,
                                      compatibility='none')
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)

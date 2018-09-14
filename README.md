@@ -62,10 +62,10 @@ Where `ARBITRARY_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
 
 For example the built-in `int` arbitrary type can be used in the following ways:
 
- - `#int` or `#int{}`: default configuration
- - `#int{"min": 10}`: do not generate numbers smaller than `10` (inclusive).
- - `#int{"max": 10}`: do not generate numbers bigger than `10` (inclusive).
- - `#int{"min": 10, "max":1000}`: generate numbers between `10` and `1000` (both inclusive).
+ - `%int` or `%int{}`: default configuration
+ - `%int{"min": 10}`: do not generate numbers smaller than `10` (inclusive).
+ - `%int{"max": 10}`: do not generate numbers bigger than `10` (inclusive).
+ - `%int{"min": 10, "max":1000}`: generate numbers between `10` and `1000` (both inclusive).
 
 
 ## Feanor DSL Expressions
@@ -111,7 +111,7 @@ and `50%` of the time evaluates to `None` (i.e. empty)
 
 You can define an expression that can merge values of two different expressions using the `+` operator.
 
-For example `#int + #float` is an expression that evaluates to the sum of a random integer and a random float.
+For example `%int + %float` is an expression that evaluates to the sum of a random integer and a random float.
 
 
 ## Examples
@@ -119,7 +119,7 @@ For example `#int + #float` is an expression that evaluates to the sum of a rand
 Generate 10 rows with random integers:
 
 ```
-$ feanor -n 10 cmdline -c a '#int' -c b '#int'
+$ feanor -n 10 cmdline -c a '%int' -c b '%int'
 a,b
 560419,658031
 655804,421309
@@ -136,7 +136,7 @@ a,b
 Generate about 1 kilobyte of rows with 2 random integers in them and write result to `/tmp/out.csv`:
 
 ```
-$ feanor -b 1024 cmdline -c a '#int' -c b '#int'  /tmp/out.csv
+$ feanor -b 1024 cmdline -c a '%int' -c b '%int'  /tmp/out.csv
 $ ls -l /tmp/out.csv 
 -rw-rw-r-- 1 user user 1027 ago  3 00:17 /tmp/out.csv
 ```
@@ -146,7 +146,7 @@ $ ls -l /tmp/out.csv
 Generate 10 rows with random integers, the first column between `0` and `10`, the second column between `0` and `1000`:
 
 ```
-$ feanor -n 10 cmdline -c a '#int{"min":0, "max":10}' -c b '#int{"min": 0, "max":1000}'
+$ feanor -n 10 cmdline -c a '%int{"min":0, "max":10}' -c b '%int{"min": 0, "max":1000}'
 a,b
 3,233
 7,414
@@ -163,7 +163,7 @@ a,b
 Generate 10 rows with random integers and their sum:
 
 ```
-$ feanor -n 10 cmdline -c a '#int' -c b '#int' -c c '@a+@b'
+$ feanor -n 10 cmdline -c a '%int' -c b '%int' -c c '@a+@b'
 a,b,c
 959911,805488,1765399
 963573,781193,1744766

@@ -33,8 +33,8 @@ class TestLexer(unittest.TestCase):
     # Start of tests
 
     def test_simple_type(self):
-        tokens = tokenize('#int')
-        expected_tokens = [('#', '#', 1, 0), ('IDENTIFIER', 'int', 1, 1)]
+        tokens = tokenize('%int')
+        expected_tokens = [('%', '%', 1, 0), ('IDENTIFIER', 'int', 1, 1)]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_reference(self):
@@ -82,17 +82,17 @@ class TestLexer(unittest.TestCase):
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_let_expression(self):
-        tokens = tokenize('let a := #int in @a')
+        tokens = tokenize('let a := %int in @a')
         expected_tokens = [
-            ('LET', 'let'), ('IDENTIFIER', 'a'), ('DEFINE', ':='), ('#', '#'), ('IDENTIFIER', 'int'),
+            ('LET', 'let'), ('IDENTIFIER', 'a'), ('DEFINE', ':='), ('%', '%'), ('IDENTIFIER', 'int'),
             ('IN', 'in'), ('@', '@'), ('IDENTIFIER', 'a')
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_parenthesized_type(self):
-        tokens = tokenize('(#int)')
+        tokens = tokenize('(%int)')
         expected_tokens = [
-            ('(', '(', 1, 0), ('#', '#', 1, 1), ('IDENTIFIER', 'int', 1, 2), (')', ')', 1, 5)
+            ('(', '(', 1, 0), ('%', '%', 1, 1), ('IDENTIFIER', 'int', 1, 2), (')', ')', 1, 5)
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
@@ -104,17 +104,17 @@ class TestLexer(unittest.TestCase):
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_type_assignment(self):
-        tokens = tokenize('(#int)=name')
+        tokens = tokenize('(%int)=name')
         expected_tokens = [
-            ('(', '(', 1, 0), ('#', '#', 1, 1), ('IDENTIFIER', 'int', 1, 2),
+            ('(', '(', 1, 0), ('%', '%', 1, 1), ('IDENTIFIER', 'int', 1, 2),
             (')', ')', 1, 5), ('=', '=', 1, 6), ('IDENTIFIER', 'name', 1, 7)
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_type_projection(self):
-        tokens = tokenize('(#int)_5')
+        tokens = tokenize('(%int)_5')
         expected_tokens = [
-            ('(', '(', 1, 0), ('#', '#', 1, 1), ('IDENTIFIER', 'int', 1, 2),
+            ('(', '(', 1, 0), ('%', '%', 1, 1), ('IDENTIFIER', 'int', 1, 2),
             (')', ')', 1, 5), ('_', '_', 1, 6), ('INTEGER', 5, 1, 7)
         ]
         self.assertEqualTokens(expected_tokens, tokens)
@@ -135,66 +135,66 @@ class TestLexer(unittest.TestCase):
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_simple_binary_or(self):
-        tokens = tokenize('#int<|>#int')
+        tokens = tokenize('%int<|>%int')
         expected_tokens = [
-            ('#', '#',), ('IDENTIFIER', 'int'), ('<', '<'), ('|', '|'), ('>', '>'), ('#', '#'), ('IDENTIFIER', 'int')
+            ('%', '%',), ('IDENTIFIER', 'int'), ('<', '<'), ('|', '|'), ('>', '>'), ('%', '%'), ('IDENTIFIER', 'int')
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_simple_binary_or_left_config(self):
-        tokens = tokenize('#int<5|>#int')
+        tokens = tokenize('%int<5|>%int')
         expected_tokens = [
-            ('#', '#',), ('IDENTIFIER', 'int'), ('<', '<'), ('INTEGER', 5),
-            ('|', '|'), ('>', '>'), ('#', '#'), ('IDENTIFIER', 'int')
+            ('%', '%',), ('IDENTIFIER', 'int'), ('<', '<'), ('INTEGER', 5),
+            ('|', '|'), ('>', '>'), ('%', '%'), ('IDENTIFIER', 'int')
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_simple_binary_or_right_config(self):
-        tokens = tokenize('#int<|"string">#int')
+        tokens = tokenize('%int<|"string">%int')
         expected_tokens = [
-            ('#', '#',), ('IDENTIFIER', 'int'), ('<', '<'), ('|', '|'),
-            ('STRING', "string"), ('>', '>'), ('#', '#'), ('IDENTIFIER', 'int')
+            ('%', '%',), ('IDENTIFIER', 'int'), ('<', '<'), ('|', '|'),
+            ('STRING', "string"), ('>', '>'), ('%', '%'), ('IDENTIFIER', 'int')
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_simple_binary_or_left_right_config(self):
-        tokens = tokenize('#int<"string"|10>#int')
+        tokens = tokenize('%int<"string"|10>%int')
         expected_tokens = [
-            ('#', '#',), ('IDENTIFIER', 'int'), ('<', '<'), ('STRING', "string"), ('|', '|'),
-            ('INTEGER', 10), ('>', '>'), ('#', '#'), ('IDENTIFIER', 'int')
+            ('%', '%',), ('IDENTIFIER', 'int'), ('<', '<'), ('STRING', "string"), ('|', '|'),
+            ('INTEGER', 10), ('>', '>'), ('%', '%'), ('IDENTIFIER', 'int')
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_assign_binary_op(self):
-        tokens = tokenize('(#int<"string"|10>#int)=name')
+        tokens = tokenize('(%int<"string"|10>%int)=name')
         expected_tokens = [('(', '('),
-                           ('#', '#',), ('IDENTIFIER', 'int'), ('<', '<'),
+                           ('%', '%',), ('IDENTIFIER', 'int'), ('<', '<'),
                            ('STRING', "string"), ('|', '|'), ('INTEGER', 10),
                            ('>', '>'),
-                           ('#', '#'), ('IDENTIFIER', 'int'), (')', ')'), ('=', '='),
+                           ('%', '%'), ('IDENTIFIER', 'int'), (')', ')'), ('=', '='),
                            ('IDENTIFIER', 'name')
                            ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_raise_error_if_name_contains_symbols(self):
         with self.assertRaises(ParsingError) as ctx:
-            tokenize('#ci-ao')
+            tokenize('%ci-ao')
         self.assertEqual("Invalid Syntax: \'-ao\'", str(ctx.exception))
 
     def test_keeps_track_of_lineno(self):
-        tokens = tokenize('(\n\n#int\n+\n#int\n\n\n)')
+        tokens = tokenize('(\n\n%int\n+\n%int\n\n\n)')
         expected_tokens = [
-            ('(', '(', 1), ('#', '#', 3), ('IDENTIFIER', 'int', 3),
-            ('+', '+', 4), ('#', '#', 5), ('IDENTIFIER', 'int', 5),
+            ('(', '(', 1), ('%', '%', 3), ('IDENTIFIER', 'int', 3),
+            ('+', '+', 4), ('%', '%', 5), ('IDENTIFIER', 'int', 5),
             (')', ')', 8)
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_keeps_track_of_lineno_and_lexpos_correctly(self):
-        tokens = tokenize('(\n\n#int\n+\n#int\n\n\n)')
+        tokens = tokenize('(\n\n%int\n+\n%int\n\n\n)')
         expected_tokens = [
-            ('(', '(', 1, 0), ('#', '#', 3, 3), ('IDENTIFIER', 'int', 3, 4),
-            ('+', '+', 4, 8), ('#', '#', 5, 10), ('IDENTIFIER', 'int', 5, 11),
+            ('(', '(', 1, 0), ('%', '%', 3, 3), ('IDENTIFIER', 'int', 3, 4),
+            ('+', '+', 4, 8), ('%', '%', 5, 10), ('IDENTIFIER', 'int', 5, 11),
             (')', ')', 8, 17)
         ]
         self.assertEqualTokens(expected_tokens, tokens)
@@ -289,10 +289,10 @@ class TestLexer(unittest.TestCase):
         self.assertEqualTokens(expected_tokens, tokens)
 
     def test_can_lex_a_string_with_newlines_outside_string_literal(self):
-        tokens = tokenize("#int\n + \n#int\n\n\n.\n#float")
+        tokens = tokenize("%int\n + \n%int\n\n\n.\n%float")
         expected_tokens = [
-            ('#', '#', 1), ('IDENTIFIER', 'int', 1), ('+', '+', 2), ('#', '#', 3),
-            ('IDENTIFIER', 'int', 3), ('.', '.', 6), ('#', '#', 7), ('IDENTIFIER', 'float', 7),
+            ('%', '%', 1), ('IDENTIFIER', 'int', 1), ('+', '+', 2), ('%', '%', 3),
+            ('IDENTIFIER', 'int', 3), ('.', '.', 6), ('%', '%', 7), ('IDENTIFIER', 'float', 7),
         ]
         self.assertEqualTokens(expected_tokens, tokens)
 
