@@ -15,8 +15,8 @@ class Arbitrary(metaclass=ABCMeta):
         if self.required_config_keys() <= conf.keys():
             self._config = Config(**conf)
         else:
-            raise ValueError('Type {} requires at least the following configuration values: {}'
-                             .format(self._type_name, to_string_list(self.required_config_keys())))
+            raise ValueError(f'Type {type_name} requires at least the following configuration values: '
+                             + to_string_list(self.required_config_keys()))
 
     @property
     def type(self):
@@ -41,7 +41,7 @@ class Arbitrary(metaclass=ABCMeta):
 
 class Config(SimpleNamespace):
     def __getattr__(self, item):
-        match = re.match(r'\Aget_(?P<attr>\w+)\Z', item)
+        match = re.fullmatch(r'get_(?P<attr>\w+)', item)
         if match:
             return lambda default=None: getattr(self, match.group('attr'), default)
         raise AttributeError(item)

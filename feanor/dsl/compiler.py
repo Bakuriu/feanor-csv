@@ -48,8 +48,8 @@ class SimpleCompatibility(Compatibility):
 
     def _get_simple_and_composite_upperbound(self, first_type, second_type):
         if second_type.num_outputs != 1:
-            raise TypeError(f'type {first_type} is incompatible with type {second_type}'
-                            f' with {second_type.num_outputs} outputs')
+            raise TypeError(f'type {first_type} is incompatible with type {second_type}.\n'
+                            f'Number of outputs differs: 1 != {second_type.num_outputs}.')
         if isinstance(second_type, ParallelType):
             return self.get_upperbound(first_type, second_type.types[0])
 
@@ -59,13 +59,11 @@ class SimpleCompatibility(Compatibility):
 
     def _get_composites_upperbound(self, first_type, second_type):
         if first_type.num_outputs != second_type.num_outputs:
-            raise TypeError(f'type {first_type} is incompatible with type {second_type}')
+            raise TypeError(f'type {first_type} is incompatible with type {second_type}.\n'
+                            f'Number of outputs differs: {first_type.num_outputs} != {second_type.num_outputs}.')
 
         if isinstance(first_type, ParallelType) and isinstance(second_type, ParallelType):
-            # both Parallel types
-            upper_bounds = [self.get_upperbound(f_ty, s_ty) for f_ty, s_ty in
-                            zip(first_type.types, second_type.types)]
-            return ParallelType(upper_bounds)
+            return ParallelType(starmap(self.get_upperbound, zip(first_type.types, second_type.types)))
 
         if isinstance(first_type, ChoiceType):
             return self._choice_upperbound(first_type, second_type)
@@ -76,7 +74,7 @@ class SimpleCompatibility(Compatibility):
         raise TypeError(f'Unknown types {first_type} and/or {second_type}')
 
     def _choice_upperbound(self, main: ChoiceType, other: Type) -> ChoiceType:
-        return ChoiceType([self.get_upperbound(t, other) for t in main.types])
+        return ChoiceType(self.get_upperbound(t, other) for t in main.types)
 
 
 class NoCompatibility(SimpleCompatibility):
