@@ -31,22 +31,6 @@ class Library(metaclass=ABCMeta):
     def get_arbitrary_factory(self, name):
         raise NotImplementedError
 
-    @abstractmethod
-    def upperbounds(cls):
-        """This method should return an iterable whose elements are upperbound chains.
-
-        An upperbound chain is an iterable of `str` objects representing type names.
-        It represents a path in the compatibility graph.
-
-        For example, the following upperbound chain:
-
-            ('int', 'float', 'complex')
-
-        defines `float` as upperbound of `int` and `complex` as upperbound of both `float` and `int`.
-        I.e. when the `+` operation is performed on types `int` and `float` the result will be of type `float`.
-
-        """
-        raise NotImplementedError
 
 
 class EmptyLibrary(Library):

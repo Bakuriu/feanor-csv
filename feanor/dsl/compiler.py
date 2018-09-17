@@ -3,9 +3,9 @@ from itertools import starmap
 from .ast import *
 from .types import *
 from ..schema import *
-from ..util import overloaded
+from ..util import overloaded, consecutive_pairs
 
-__all__ = ['SimpleCompatibility', 'TypeInferencer', 'Compiler']
+__all__ = ['SimpleCompatibility', 'PairBasedCompatibility', 'TypeInferencer', 'Compiler']
 
 
 class Compatibility(metaclass=ABCMeta):
@@ -22,6 +22,9 @@ class Compatibility(metaclass=ABCMeta):
             return True
 
     def is_assignable_to(self, first_type: Type, target_type: Type) -> bool:
+        if first_type == target_type:
+            return True
+
         try:
             upperbound = self.get_upperbound(first_type, target_type)
             return upperbound == target_type
@@ -79,6 +82,36 @@ class SimpleCompatibility(Compatibility):
 
     def _choice_upperbound(self, main: ChoiceType, other: Type) -> ChoiceType:
         return ChoiceType(self.get_upperbound(t, other) for t in main.types)
+
+
+class PairBasedCompatibility(SimpleCompatibility):
+
+    def __init__(self):
+        super().__init__(upperbound=self._simple_type_upperbound)
+        self._upperbound_pairs = set()
+
+    def add_upperbounds(self, upperbounds):
+        self._upperbound_pairs.update(chain.from_iterable(map(self._get_all_pairs, upperbounds)))
+
+    def _simple_type_upperbound(self, first_type, second_type):
+        first_type_name = first_type.name
+        second_type_name = second_type.name
+        if (first_type_name, second_type_name) in self._upperbound_pairs:
+            return second_type
+        elif (second_type_name, first_type_name) in self._upperbound_pairs:
+            return first_type
+
+        raise TypeError(f'type {first_type} is incompatible with type {second_type}')
+
+    def _get_all_pairs(self, upperbound_chain):
+        pairs = consecutive_pairs(upperbound_chain)
+        prevs = []
+        for a, b in pairs:
+            for prev in prevs:
+                yield (prev, a)
+            yield (a, b)
+            prevs.append(a)
+
 
 
 class TypeInferencer:

@@ -48,7 +48,8 @@ class TestTypeInferencer(unittest.TestCase):
         expected_type = SimpleType('int')
         arg_type = SimpleType('float')
         env = {'a': arg_type}
-        inferencer = TypeInferencer(self.library.compatibility(), env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(self.library.compatibility(), env=env,
+                                    func_env={'func': ([arg_type], expected_type)})
         got = inferencer.infer(CallNode.of('func', [ReferenceNode.of('a')]))
         self.assertEqual(expected_type, got)
 
@@ -58,17 +59,18 @@ class TestTypeInferencer(unittest.TestCase):
         env = {'a': arg_type}
         arg_node = ReferenceNode.of('a')
         tree = CallNode.of('func', [arg_node])
-        inferencer = TypeInferencer(self.library.compatibility(), env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(self.library.compatibility(), env=env,
+                                    func_env={'func': ([arg_type], expected_type)})
         inferencer.infer(tree)
         self.assertEqual({'type': arg_type}, arg_node.info)
         self.assertEqual({'type': expected_type}, tree.info)
-
 
     def test_can_infer_type_of_call_when_called_with_compatible_argument(self):
         expected_type = SimpleType('int')
         arg_type = SimpleType('float')
         env = {'a': SimpleType('int')}
-        inferencer = TypeInferencer(self.library.compatibility(), env=env, func_env={'func': ([arg_type], expected_type)})
+        inferencer = TypeInferencer(self.library.compatibility(), env=env,
+                                    func_env={'func': ([arg_type], expected_type)})
         got = inferencer.infer(CallNode.of('func', [ReferenceNode.of('a')]))
         self.assertEqual(expected_type, got)
 
@@ -289,7 +291,8 @@ class TestTypeInferencer(unittest.TestCase):
         # let inside let
         with self.assertRaises(TypeError):
             inferencer = TypeInferencer(self.library.compatibility())
-            inferencer.infer(LetNode.of([('a', LetNode.of([('a', TypeNameNode.of('int'))], TypeNameNode.of('float')))], TypeNameNode.of('int')))
+            inferencer.infer(LetNode.of([('a', LetNode.of([('a', TypeNameNode.of('int'))], TypeNameNode.of('float')))],
+                                        TypeNameNode.of('int')))
 
     def test_raises_error_if_projecting_on_a_non_composite_node(self):
         with self.assertRaises(TypeError):
@@ -297,47 +300,180 @@ class TestTypeInferencer(unittest.TestCase):
 
     def test_raises_error_if_projecting_indices_outside_output_dimension(self):
         with self.assertRaises(TypeError) as ctx:
-            self.inferencer.infer(ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 2))
+            self.inferencer.infer(
+                ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 2))
         self.assertEqual('Indices out of range for projection', str(ctx.exception))
 
     def test_raises_error_if_function_called_with_incorrect_number_of_arguments(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(self.library.compatibility(), func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer = TypeInferencer(self.library.compatibility(),
+                                        func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
             inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('int'), TypeNameNode.of('float')]))
         self.assertEqual('Incorrect number of arguments to function ciao: 2 instead of 1', str(ctx.exception))
 
     def test_raises_error_if_function_called_with_unassignable_argument_type(self):
         # FIXME: compatibility is symmetric. So here we have no way of properly type checking a function call
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(self.library.compatibility(), func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer = TypeInferencer(self.library.compatibility(),
+                                        func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
             inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('float')]))
         self.assertEqual('Incompatible types for argument 0 of ciao: float instead of int', str(ctx.exception))
 
     def test_raises_error_if_function_called_with_incompatible_argument_type(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(self.library.compatibility(), func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
+            inferencer = TypeInferencer(self.library.compatibility(),
+                                        func_env={'ciao': ([SimpleType('int')], SimpleType('int'))})
             inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('string')]))
         self.assertEqual('Incompatible types for argument 0 of ciao: string instead of int', str(ctx.exception))
 
     def test_raises_error_if_merge_on_incompatible_parallel_types(self):
         with self.assertRaises(TypeError) as ctx:
             inferencer = TypeInferencer(self.library.compatibility(),
-                env={'a': ParallelType([SimpleType('int')]), 'b': ParallelType([SimpleType('string')])})
+                                        env={
+                                            'a': ParallelType([SimpleType('int')]),
+                                            'b': ParallelType([SimpleType('string')])
+                                        })
             inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
         self.assertEqual("Incompatible types for merge: Parallel(int) and Parallel(string)", str(ctx.exception))
 
     def test_raises_error_if_merge_on_incompatible_types(self):
         with self.assertRaises(TypeError) as ctx:
-            inferencer = TypeInferencer(self.library.compatibility(), env={'a': ParallelType([SimpleType('int')]), 'b': SimpleType('float')})
+            inferencer = TypeInferencer(self.library.compatibility(),
+                                        env={'a': ParallelType([SimpleType('int')]), 'b': SimpleType('float')})
             inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
         self.assertEqual("Incompatible types for merge: Parallel(int) and float", str(ctx.exception))
 
+
+class TestPairBasedCompatibility(unittest.TestCase):
+    def _make_compat(self, pairs):
+        compat = PairBasedCompatibility()
+        compat.add_upperbounds(pairs)
+        return compat
+
+    def test_simple_type_is_assignable_to_itself_always(self):
+        compatibility = self._make_compat(set())
+        self.assertTrue(compatibility.is_assignable_to(SimpleType('int'), SimpleType('int')))
+
+    def test_simple_type_is_not_compatible_to_itself_if_not_provided(self):
+        compatibility = self._make_compat(set())
+        self.assertFalse(compatibility.is_compatible(SimpleType('int'), SimpleType('int')))
+
+    def test_simple_type_is_compatible_with_itself_if_provided(self):
+        compatibility = self._make_compat({('int', 'int')})
+        self.assertTrue(compatibility.is_compatible(SimpleType('int'), SimpleType('int')))
+
+    def test_simple_type_is_compatible_with_other_type_if_provided(self):
+        compatibility = self._make_compat({('int', 'float')})
+        self.assertTrue(compatibility.is_compatible(SimpleType('int'), SimpleType('float')))
+        self.assertTrue(compatibility.is_compatible(SimpleType('float'), SimpleType('int')))
+
+    def test_simple_type_is_assignable_to_other_type_if_provided(self):
+        compatibility = self._make_compat({('int', 'float')})
+        self.assertTrue(compatibility.is_assignable_to(SimpleType('int'), SimpleType('float')))
+
+    def test_simple_type_is_not_assignable_to_a_lowerbound(self):
+        compatibility = self._make_compat({('int', 'float')})
+        self.assertFalse(compatibility.is_assignable_to(SimpleType('float'), SimpleType('int')))
+
+    def test_parallel_type_type_is_assignable_to_itself_always(self):
+        compatibility = self._make_compat(set())
+        left = ParallelType([SimpleType('int'), SimpleType('float')])
+        right = ParallelType([SimpleType('int'), SimpleType('float')])
+        self.assertTrue(compatibility.is_assignable_to(left, right))
+
+    def test_parallel_type_type_is_not_compatible_to_itself_if_not_provided(self):
+        compatibility = self._make_compat(set())
+        left = ParallelType([SimpleType('int'), SimpleType('float')])
+        right = ParallelType([SimpleType('int'), SimpleType('float')])
+        self.assertFalse(compatibility.is_compatible(left, right))
+
+    def test_parallel_type_type_is_compatible_with_itself_if_provided(self):
+        compatibility = self._make_compat({('int', 'int'), ('float', 'float')})
+        left = ParallelType([SimpleType('int'), SimpleType('float')])
+        right = ParallelType([SimpleType('int'), SimpleType('float')])
+        self.assertTrue(compatibility.is_compatible(left, right))
+
+    def test_parallel_type_type_is_compatible_with_other_type_if_provided(self):
+        compatibility = self._make_compat({('int', 'float', 'string')})
+        left = ParallelType([SimpleType('int'), SimpleType('float')])
+        right = ParallelType([SimpleType('float'), SimpleType('string')])
+        self.assertTrue(compatibility.is_compatible(left, right))
+        self.assertTrue(compatibility.is_compatible(right, left))
+
+    def test_parallel_type_type_is_assignable_to_other_type_if_provided(self):
+        compatibility = self._make_compat({('int', 'float', 'float')})
+        left = ParallelType([SimpleType('int'), SimpleType('float')])
+        right = ParallelType([SimpleType('float'), SimpleType('float')])
+        self.assertTrue(compatibility.is_assignable_to(left, right))
+
+    def test_parallel_type_type_is_not_assignable_to_a_lowerbound(self):
+        compatibility = self._make_compat({('int', 'float', 'float')})
+        left = ParallelType([SimpleType('int'), SimpleType('float')])
+        right = ParallelType([SimpleType('float'), SimpleType('float')])
+        self.assertFalse(compatibility.is_assignable_to(right, left))
+
+    def test_choice_type_type_is_assignable_to_itself_always(self):
+        compatibility = self._make_compat(set())
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = ChoiceType([SimpleType('int'), SimpleType('float')])
+        self.assertTrue(compatibility.is_assignable_to(left, right))
+
+    def test_choice_type_type_is_not_compatible_to_itself_if_not_provided(self):
+        compatibility = self._make_compat(set())
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = ChoiceType([SimpleType('int'), SimpleType('float')])
+        self.assertFalse(compatibility.is_compatible(left, right))
+
+    def test_choice_type_type_is_not_compatible_with_itself_if_provided_only_self_compatibilities(self):
+        compatibility = self._make_compat({('int', 'int'), ('float', 'float')})
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = ChoiceType([SimpleType('int'), SimpleType('float')])
+        self.assertFalse(compatibility.is_compatible(left, right))
+
+    def test_choice_type_type_is_compatible_with_itself_if_provided_all_pairs(self):
+        compatibility = self._make_compat({('int', 'int', 'float', 'float')})
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = ChoiceType([SimpleType('int'), SimpleType('float')])
+        self.assertTrue(compatibility.is_compatible(left, right))
+
+    def test_choice_type_type_is_compatible_with_other_type_if_provided_all_pairs(self):
+        compatibility = self._make_compat({('int', 'float', 'float', 'string', 'string')})
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = SimpleType('string')
+        self.assertTrue(compatibility.is_compatible(left, right))
+        self.assertTrue(compatibility.is_compatible(right, left))
+
+    def test_choice_type_type_is_not_compatible_with_other_type_if_provided_only_some_pairs(self):
+        compatibility = self._make_compat({('int', 'float'), ('float', 'string')})
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = SimpleType('string')
+        self.assertFalse(compatibility.is_compatible(left, right))
+        self.assertFalse(compatibility.is_compatible(right, left))
+
+    def test_choice_type_type_is_assignable_to_other_type_if_provided(self):
+        compatibility = self._make_compat({('int', 'float', 'float')})
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = ChoiceType([SimpleType('float'), SimpleType('float')])
+        self.assertTrue(compatibility.is_assignable_to(left, right))
+
+    def test_choice_type_type_is_not_assignable_to_a_lowerbound(self):
+        compatibility = self._make_compat({('int', 'float', 'float')})
+        left = ChoiceType([SimpleType('int'), SimpleType('float')])
+        right = ChoiceType([SimpleType('float'), SimpleType('float')])
+        self.assertFalse(compatibility.is_assignable_to(right, left))
+
+    def test_parallel_type_can_be_compatible_with_choice_type(self):
+        compatibility = self._make_compat({('int', 'int', 'float', 'float')})
+        left_type = ChoiceType([ParallelType(2 * [SimpleType('int')]), ParallelType(2 * [SimpleType('float')])])
+        right_type = ParallelType(2 * [SimpleType('float')])
+        self.assertTrue(compatibility.is_compatible(left_type, right_type))
+        self.assertTrue(compatibility.is_compatible(right_type, left_type))
 
 
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
         self.compatibility = BuiltInLibrary({}, random).compatibility()
-        self.compatibility.add_upperbounds({('int', 'float')})
+        self.compatibility.add_upperbounds({('int', 'int'), ('float', 'float')})
 
     def test_identical_simple_types_are_compatible(self):
         self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), SimpleType('int')))
@@ -380,19 +516,21 @@ class TestDefaultCompatibility(unittest.TestCase):
         self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), ParallelType([SimpleType('int')])))
 
     def test_parallel_type_with_more_than_one_dimension_is_not_compatible_with_simple_type(self):
-        self.assertFalse(self.compatibility.is_compatible(ParallelType([SimpleType('int')]*2), SimpleType('int')))
+        self.assertFalse(self.compatibility.is_compatible(ParallelType([SimpleType('int')] * 2), SimpleType('int')))
         # symmetric case:
-        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), ParallelType([SimpleType('int')]*2)))
+        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), ParallelType([SimpleType('int')] * 2)))
 
     def test_choice_type_with_one_dimension_is_compatible_with_simple_type(self):
         self.assertTrue(self.compatibility.is_compatible(ChoiceType([SimpleType('int')]), SimpleType('int')))
         # symmetric case:
-        self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), ChoiceType(2*[SimpleType('int')])))
+        self.assertTrue(self.compatibility.is_compatible(SimpleType('int'), ChoiceType(2 * [SimpleType('int')])))
 
     def test_choice_type_with_more_than_one_dimension_is_not_compatible_with_simple_type(self):
-        self.assertFalse(self.compatibility.is_compatible(ChoiceType([ParallelType(2*[SimpleType('int')])]), SimpleType('int')))
+        self.assertFalse(
+            self.compatibility.is_compatible(ChoiceType([ParallelType(2 * [SimpleType('int')])]), SimpleType('int')))
         # symmetric case:
-        self.assertFalse(self.compatibility.is_compatible(SimpleType('int'), ChoiceType([ParallelType(2*[SimpleType('int')])])))
+        self.assertFalse(
+            self.compatibility.is_compatible(SimpleType('int'), ChoiceType([ParallelType(2 * [SimpleType('int')])])))
 
 
 class TestCompiler(unittest.TestCase):
@@ -802,7 +940,8 @@ class TestCompiler(unittest.TestCase):
         schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
 
-        got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int', config={'min': 10}))], ReferenceNode.of('a')))
+        got = self.compiler.compile(
+            LetNode.of([('a', TypeNameNode.of('int', config={'min': 10}))], ReferenceNode.of('a')))
         self.assertEqual(schema, got)
 
     def test_when_compiling_multiple_expressions_number_of_outputs_per_expression_is_taken_into_account(self):
@@ -848,3 +987,12 @@ class TestCompiler(unittest.TestCase):
                                TypeNameNode.of('float'))
         got = self.compiler.compile(expr, column_names=['transformer#1#0'])
         self.assertEqual(schema, got)
+
+    def test_example_with_merge_incompatible_num_of_outputs(self):
+        expr = BinaryOpNode.of(
+            '+',
+            TypeNameNode.of('int'),
+            BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))
+        )
+        with self.assertRaises(TypeError):
+            self.compiler.compile(expr, column_names=['transformer#1#0'])
