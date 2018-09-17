@@ -24,10 +24,6 @@ class DataGenerator:
         self._arbitraries = arbitraries
         self._columns = tuple(columns)
 
-    @property
-    def columns(self):
-        return self._columns
-
     def __call__(self):
         env = {name: arbitrary() for name, arbitrary in self._arbitraries.items()}
         for transformer in self._transformers:

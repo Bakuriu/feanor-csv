@@ -149,3 +149,44 @@ class TestFacade(unittest.TestCase):
                            range(6)]
         self.assertEqual(7, len(lines.splitlines()))
         self.assertEqual(['A,B,C'] + expected_values, lines.splitlines())
+
+    def test_can_generate_some_data_no_header_stream(self):
+        schema = Schema(show_header=False)
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
+        saved_data = MaxSizeFileIO(256)
+        with self.assertRaises(IOError):
+            generate_data(schema, self.library, saved_data, stream_mode=True)
+        lines = saved_data.buffer
+        expected_values = [','.join(map(str, (self.rand_copy.randint(0, 1_000_000) for _ in range(3))))
+                           for _ in range(13)]
+        expected_values[-1] = expected_values[-1][:6]
+        self.assertEqual(13, len(lines.splitlines()))
+        self.assertEqual(expected_values, lines.splitlines())
+
+    def test_can_generate_some_data_stream(self):
+        schema = Schema()
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
+        saved_data = MaxSizeFileIO(256)
+        with self.assertRaises(IOError):
+            generate_data(schema, self.library, saved_data, stream_mode=True)
+        lines = saved_data.buffer
+        expected_values = [','.join(map(str, (self.rand_copy.randint(0, 1_000_000) for _ in range(3))))
+                           for _ in range(12)]
+        self.assertEqual(13, len(lines.splitlines()))
+        self.assertEqual(['A,B,C'] + expected_values, lines.splitlines())
+
+
+class MaxSizeFileIO:
+    def __init__(self, maxsize):
+        self.maxsize = maxsize
+        self.buffer = ""
+
+    def write(self, text):
+        if len(self.buffer) > self.maxsize:
+            self.buffer = self.buffer[:self.maxsize]
+            raise IOError('maximum size exceeded')
+        self.buffer += text
