@@ -57,13 +57,28 @@ class TestTypeNameNode(unittest.TestCase):
         self.assertEqual(TypeNameNode.of('a'), TypeNameNode.of('a'))
 
     def test_equals_if_same_name_with_config(self):
-        self.assertEqual(TypeNameNode.of('a', {'b': 13}), TypeNameNode.of('a', {'b': 13}))
+        self.assertEqual(TypeNameNode.of('a', config={'b': 13}), TypeNameNode.of('a', config={'b': 13}))
 
     def test_not_equals_if_different_name(self):
         self.assertNotEqual(TypeNameNode.of('a'), TypeNameNode.of('b'))
 
     def test_not_equals_if_different_config(self):
-        self.assertNotEqual(TypeNameNode.of('a', {'a': 13}), TypeNameNode.of('b', {'a': 14}))
+        self.assertNotEqual(TypeNameNode.of('a', config={'a': 13}), TypeNameNode.of('b', config={'a': 14}))
+
+    def test_equals_if_same_name_same_arbitrary_name(self):
+        self.assertEqual(TypeNameNode.of('a', 'b'), TypeNameNode.of('a', 'b'))
+
+    def test_equals_if_same_name_same_arbitrary_with_config(self):
+        self.assertEqual(TypeNameNode.of('a', 'b', config={'b': 13}), TypeNameNode.of('a', 'b', config={'b': 13}))
+
+    def test_not_equals_if_same_name_different_arbitrary(self):
+        self.assertNotEqual(TypeNameNode.of('a', 'a'), TypeNameNode.of('a', 'b'))
+
+    def test_not_equals_if_same_name_same_arbitrary_different_config(self):
+        self.assertNotEqual(TypeNameNode.of('a', 'b', config={'a': 13}), TypeNameNode.of('a', 'b', config={'a': 14}))
+
+    def test_not_equals_if_same_name_same_config_different_arbitrary(self):
+        self.assertNotEqual(TypeNameNode.of('a', 'b', config={'a': 13}), TypeNameNode.of('a', 'a', config={'a': 13}))
 
     def test_not_equals_if_not_ast_node(self):
         self.assertNotEqual(TypeNameNode.of('a'), 'a')
