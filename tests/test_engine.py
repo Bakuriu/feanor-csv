@@ -1,9 +1,11 @@
 import itertools as it
 import random
 import unittest
+from io import StringIO
+from unittest import mock
 
 from feanor.builtin import BuiltInLibrary
-from feanor.engine import Engine
+from feanor.engine import *
 from feanor.schema import Schema
 
 
@@ -82,3 +84,68 @@ class TestEngine(unittest.TestCase):
         generated_values = list(engine.generate_data(number_of_rows=10))
         first_col, second_col = zip(*generated_values)
         self.assertEqual(first_col, second_col)
+
+
+class TestFacade(unittest.TestCase):
+    def setUp(self):
+        self.rand = random.Random(0)
+        self.rand_copy = random.Random(0)
+        self.library = BuiltInLibrary({}, self.rand)
+
+    def test_generate_data_raises_if_missing_size_parameters(self):
+        with self.assertRaises(TypeError):
+            generate_data(Schema(), self.library, mock.MagicMock())
+
+    def test_generate_data_raises_if_both_num_rows_and_num_bytes_are_specified(self):
+        with self.assertRaises(TypeError):
+            generate_data(Schema(), self.library, mock.MagicMock(), number_of_rows=10, byte_count=100)
+
+    def test_can_generate_some_data(self):
+        schema = Schema()
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
+        saved_data = StringIO()
+        generate_data(schema, self.library, saved_data, number_of_rows=1)
+        lines = saved_data.getvalue()
+        expected_values = tuple(self.rand_copy.randint(0, 1_000_000) for _ in range(3))
+        self.assertEqual(2, len(lines.splitlines()))
+        self.assertEqual(['A,B,C', ','.join(map(str, expected_values))], lines.splitlines())
+
+    def test_can_generate_some_data_no_header(self):
+        schema = Schema(show_header=False)
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
+        saved_data = StringIO()
+        generate_data(schema, self.library, saved_data, number_of_rows=1)
+        lines = saved_data.getvalue()
+        expected_values = tuple(self.rand_copy.randint(0, 1_000_000) for _ in range(3))
+        self.assertEqual(1, len(lines.splitlines()))
+        self.assertEqual([','.join(map(str, expected_values))], lines.splitlines())
+
+    def test_can_generate_some_data_no_header_byte_count(self):
+        schema = Schema(show_header=False)
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
+        saved_data = StringIO()
+        generate_data(schema, self.library, saved_data, byte_count=128)
+        lines = saved_data.getvalue()
+        expected_values = [','.join(map(str, (self.rand_copy.randint(0, 1_000_000) for _ in range(3)))) for _ in
+                           range(7)]
+        self.assertEqual(7, len(lines.splitlines()))
+        self.assertEqual(expected_values, lines.splitlines())
+
+    def test_can_generate_some_data_bytecount(self):
+        schema = Schema()
+        schema.define_column('A', type='int')
+        schema.define_column('B', type='int')
+        schema.define_column('C', type='int')
+        saved_data = StringIO()
+        generate_data(schema, self.library, saved_data, byte_count=128)
+        lines = saved_data.getvalue()
+        expected_values = [','.join(map(str, (self.rand_copy.randint(0, 1_000_000) for _ in range(3)))) for _ in
+                           range(6)]
+        self.assertEqual(7, len(lines.splitlines()))
+        self.assertEqual(['A,B,C'] + expected_values, lines.splitlines())

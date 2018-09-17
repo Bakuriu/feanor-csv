@@ -65,7 +65,7 @@ def _generate_data_by_byte_count(schema, library, output_file, byte_count):
 
     def write_to_file(seq):
         nonlocal num_bytes
-        line = ';'.join(map(str, seq)) + '\n'
+        line = ','.join(map(str, seq)) + '\n'
         num_bytes += len(line)
         output_file.write(line)
 
@@ -77,7 +77,7 @@ def _generate_data_stream(schema, library, output_file):
     generator = _make_stream_of_data(schema, library)
 
     def write_to_file(seq):
-        output_file.write(';'.join(map(str, seq)) + '\n')
+        output_file.write(','.join(map(str, seq)) + '\n')
 
     for data in generator:
         write_to_file(data)
