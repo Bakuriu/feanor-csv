@@ -1,6 +1,6 @@
 import unittest
 
-from feanor.builtin import BuiltInCompatibility, BuiltInLibrary
+from feanor.builtin import BuiltInLibrary
 from feanor.dsl.ast import *
 from feanor.dsl.compiler import *
 from feanor.dsl.types import *
@@ -17,8 +17,17 @@ class TestTypeInferencer(unittest.TestCase):
         got = self.inferencer.infer(TypeNameNode.of('int'))
         self.assertEqual(SimpleType('int'), got)
 
+    def test_can_infer_type_of_a_type_name_node_with_arbitrary(self):
+        got = self.inferencer.infer(TypeNameNode.of('int', 'fixed'))
+        self.assertEqual(SimpleType('int'), got)
+
     def test_inferring_type_of_type_name_node_sets_info_value(self):
         tree = TypeNameNode.of('int')
+        self.inferencer.infer(tree)
+        self.assertEqual({'type': SimpleType('int')}, tree.info)
+
+    def test_inferring_type_of_type_name_node_with_arbitrary_sets_info_value(self):
+        tree = TypeNameNode.of('int', 'fixed')
         self.inferencer.infer(tree)
         self.assertEqual({'type': SimpleType('int')}, tree.info)
 
@@ -410,6 +419,26 @@ class TestCompiler(unittest.TestCase):
         }
         self.assertEqual(expected_info, tree.info)
 
+    def test_can_compile_a_type_name_node_with_arbitrary_no_config(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='fixed')
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        got = self.compiler.compile(TypeNameNode.of('int', 'fixed'))
+        self.assertEqual(schema, got)
+
+    def test_compiling_a_type_name_node_with_arbitrary_no_config_sets_info_value(self):
+        tree = TypeNameNode.of('int', 'fixed')
+        self.compiler.compile(tree)
+        expected_info = {
+            'type': SimpleType('int'),
+            'assigned_name': None,
+            'in_names': ['arbitrary#0'],
+            'out_names': ['arbitrary#0'],
+        }
+        self.assertEqual(expected_info, tree.info)
+
     def test_can_compile_a_type_name_node_with_config(self):
         schema = Schema()
         schema.add_column('column#0')
@@ -421,6 +450,26 @@ class TestCompiler(unittest.TestCase):
 
     def test_compiling_a_type_name_node_with_config_sets_info_value(self):
         tree = TypeNameNode.of('int', config={'min': 10})
+        self.compiler.compile(tree)
+        expected_info = {
+            'type': SimpleType('int'),
+            'assigned_name': None,
+            'in_names': ['arbitrary#0'],
+            'out_names': ['arbitrary#0'],
+        }
+        self.assertEqual(expected_info, tree.info)
+
+    def test_can_compile_a_type_name_node_with_arbitrary_config(self):
+        schema = Schema()
+        schema.add_column('column#0')
+        schema.add_arbitrary('arbitrary#0', type='fixed', config={'value': 10})
+        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+                               transformer=IdentityTransformer(1))
+        got = self.compiler.compile(TypeNameNode.of('int', 'fixed', config={'value': 10}))
+        self.assertEqual(schema, got)
+
+    def test_compiling_a_type_name_node_with_arbitrary_config_sets_info_value(self):
+        tree = TypeNameNode.of('int', 'fixed', config={'value': 10})
         self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int'),

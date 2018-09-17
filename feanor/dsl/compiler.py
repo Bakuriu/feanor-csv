@@ -250,6 +250,7 @@ class Compiler:
 
     @visitor.register(TypeNameNode)
     def _(self, cur_node: TypeNameNode, *children_values):
+        # TODO: we should be able to check if the configuration is valid here instead of afterwards.
         type_name, arbitrary, config = children_values
         name = self._new_arbitrary_name()
         self._schema.add_arbitrary(name, type=arbitrary if arbitrary != 'default' else type_name, config=config)
