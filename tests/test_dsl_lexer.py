@@ -37,6 +37,11 @@ class TestLexer(unittest.TestCase):
         expected_tokens = [('%', '%', 1, 0), ('IDENTIFIER', 'int', 1, 1)]
         self.assertEqualTokens(expected_tokens, tokens)
 
+    def test_type_with_generator(self):
+        tokens = tokenize('%int:fixed')
+        expected_tokens = [('%', '%', 1, 0), ('IDENTIFIER', 'int', 1, 1), (':', ':', 1, 4), ('IDENTIFIER', 'fixed', 1, 5)]
+        self.assertEqualTokens(expected_tokens, tokens)
+
     def test_reference(self):
         tokens = tokenize('@int')
         expected_tokens = [('@', '@', 1, 0), ('IDENTIFIER', 'int', 1, 1)]
