@@ -19,9 +19,17 @@ class TestParser(ParsingTestCase):
         got = self.parser.parse('%int{}')
         self.assertEqual(TypeNameNode.of('int'), got)
 
+    def test_can_parse_type_with_arbitrary(self):
+        got = self.parser.parse('%int:fixed')
+        self.assertEqual(TypeNameNode.of('int', 'fixed'), got)
+
     def test_can_parse_type_with_config(self):
         got = self.parser.parse('%int{"min":10,"max":15}')
         self.assertEqual(TypeNameNode.of('int', config={'min': 10, 'max': 15}), got)
+
+    def test_can_parse_type_with_arbitrary_and_config(self):
+        got = self.parser.parse('%int:fixed{"value": 10}')
+        self.assertEqual(TypeNameNode.of('int', 'fixed', config={'value': 10}), got)
 
     def test_can_parse_reference(self):
         got = self.parser.parse('@int')
