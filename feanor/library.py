@@ -46,4 +46,4 @@ class EmptyLibrary(Library):
         return {}
 
     def get_arbitrary_factory(self, name):
-        return lambda name: None
+        return lambda random_funcs, config=None: None
