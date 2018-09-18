@@ -26,6 +26,17 @@ class TestIdentifier(unittest.TestCase):
         for node in other_nodes:
             self.assertNotEqual(Identifier('a'), node)
 
+    def test_of_is_identity_if_called_with_identifier(self):
+        name = Identifier('a')
+        self.assertIs(name, Identifier.of(name))
+
+    def test_can_create_identifier_with_of(self):
+        self.assertEqual(Identifier('a'), Identifier.of('a'))
+
+    def test_str(self):
+        self.assertEqual('name', str(Identifier('name')))
+
+
 
 class TestConfig(unittest.TestCase):
     def test_equals_if_same_config(self):
@@ -96,6 +107,9 @@ class TestTypeNameNode(unittest.TestCase):
         for node in other_nodes:
             self.assertNotEqual(TypeNameNode.of('a'), node)
 
+    def test_str(self):
+        self.assertEqual('TypeName(a, default, {})', str(TypeNameNode.of('a')))
+
 
 class TestReferenceNode(unittest.TestCase):
     def test_equals_if_same_name(self):
@@ -157,15 +171,20 @@ class TestLiteralNode(unittest.TestCase):
             5,
             {'a': 1, 'b': 3},
             {'a': {'b': {'c': {'d': 1}}}},
+            [1,2,3],
         ]
         values = [
             'a',
             5,
             {'a': LiteralNode.of(1), 'b': LiteralNode.of(3)},
             {'a': LiteralNode.of({'b': LiteralNode.of({'c': LiteralNode.of({'d': LiteralNode.of(1)})})})},
+            LiteralNode.of([1, LiteralNode.of(2), 3]),
         ]
         for value, expected in zip(values, expected_values):
             self.assertEqual(LiteralNode.of(value).to_plain_object(), expected)
+
+    def test_str(self):
+        self.assertEqual('5', str(LiteralNode.of(5)))
 
 
 class TestAssignNode(unittest.TestCase):

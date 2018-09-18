@@ -26,7 +26,7 @@ class AstNode(metaclass=ABCMeta):
         return self.__class__ == other.__class__ and self._children == other._children
 
     @classmethod
-    def of(cls, *args, **kwargs):
+    def of(cls, *args, **kwargs):  # pragma: no cover
         # noinspection PyArgumentList
         return cls(*args, **kwargs)
 
@@ -85,7 +85,7 @@ class TypeNameNode(ExprNode):
         super().__init__(identifier, arbitrary, config)
 
     @classmethod
-    def of(cls, name: str, arbitrary: str='default', config=None):
+    def of(cls, name: str, arbitrary: str = 'default', config=None):
         return cls(Identifier.of(name), Identifier.of(arbitrary), Config.of(config))
 
 
@@ -113,7 +113,6 @@ class LiteralNode(AstNode):
         self.literal = literal
         self.literal_type = type(literal)
 
-
     def __str__(self):
         return str(self.literal)
 
@@ -123,6 +122,7 @@ class LiteralNode(AstNode):
     def to_plain_object(self):
         def maybe_to_plain_object(elem):
             return elem.to_plain_object() if isinstance(elem, LiteralNode) else elem
+
         if isinstance(self.literal, (list, set)):
             return self.literal_type(map(maybe_to_plain_object, self.literal))
         elif isinstance(self.literal, dict):
