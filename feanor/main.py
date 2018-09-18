@@ -13,7 +13,7 @@ from .dsl.compiler import Compiler
 from .engine import generate_data
 
 
-def main():
+def main(): # pragma: no cover
     schema, library, output_file, size_dict = parse_arguments()
     generate_data(schema, library, output_file, **size_dict)
 
@@ -24,7 +24,7 @@ def parse_arguments(args=None):
     args = parser.parse_args(args=args)
     try:
         schema, library, size_dict = get_schema_size_and_library_params(args)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError) as e:  # pragma: no cover
         parser.print_usage(sys.stderr)
         sys.stderr.write('{}: error: {}\n'.format(parser.prog, str(e)))
         sys.exit(2)
