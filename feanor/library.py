@@ -32,10 +32,10 @@ class Library(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-
 class EmptyLibrary(Library):
     def __init__(self):
         super().__init__({}, random)
+
     def compatibility(cls):
         return SimpleCompatibility(lambda x, y: x)
 
@@ -47,6 +47,3 @@ class EmptyLibrary(Library):
 
     def get_arbitrary_factory(self, name):
         return lambda name: None
-
-    def upperbounds(cls):
-        return set()
