@@ -1,6 +1,8 @@
 import random
+import time
 import unittest
-from datetime import datetime
+from calendar import timegm
+from datetime import datetime, timezone
 from itertools import cycle, islice
 
 from feanor.builtin import *
@@ -74,20 +76,9 @@ class TestFloatArbitrary(unittest.TestCase):
         self.assertEqual(10, arbitrary.config.min)
         self.assertEqual(11, arbitrary.config.max)
 
-
-class TestMultiArbitrary(unittest.TestCase):
-    def setUp(self):
-        self.rand = random.Random(0)
-
-    def test_can_combine_multiple_arbitraries(self):
-        arbitrary = MultiArbitrary(self.rand,
-                                   [IntArbitrary(random_funcs=self.rand), IntArbitrary(random_funcs=self.rand)])
-        value = arbitrary()
-        self.assertIsInstance(value, tuple)
-        self.assertEqual(2, len(value))
-        self.assertIsInstance(value[0], int)
-        self.assertIsInstance(value[1], int)
-        self.assertNotEqual(value[0], value[1])
+    def test_raises_error_if_passed_invalid_distribution(self):
+        with self.assertRaises(ValueError):
+            FloatArbitrary(random_funcs=self.rand, config={'distribution': 'invalid'})
 
 
 class TestFixedArbitrary(unittest.TestCase):
@@ -141,10 +132,77 @@ class TestStringArbitrary(unittest.TestCase):
         self.assertEqual(set(range(1, 6)), got)
 
 
+class TestAlphaArbitrary(unittest.TestCase):
+    def setUp(self):
+        self.rand = random.Random(0)
+        self.rand_copy = random.Random(0)
+
+    def test_can_generate_a_random_string(self):
+        arbitrary = AlphaArbitrary(random_funcs=self.rand)
+        self.assertIsInstance(arbitrary(), str)
+
+    def test_generates_different_strings(self):
+        arbitrary = AlphaArbitrary(random_funcs=self.rand)
+        a = arbitrary()
+        b = arbitrary()
+        self.assertIsInstance(a, str)
+        self.assertIsInstance(b, str)
+        self.assertNotEqual(a, b)
+
+    def test_string_contains_only_selected_characters(self):
+        arbitrary = AlphaArbitrary(random_funcs=self.rand, config={'len': 1000})
+        self.assertTrue(arbitrary().isalpha())
+
+    def test_string_is_of_specified_length(self):
+        arbitrary = AlphaArbitrary(random_funcs=self.rand, config={'len': 10})
+        for _ in range(10):
+            self.assertEqual(10, len(arbitrary()))
+
+    def test_can_specify_length_range(self):
+        arbitrary = StringArbitrary(random_funcs=self.rand, config={'min_len': 1, 'max_len': 5})
+        got = {len(arbitrary()) for _ in range(20)}
+        self.assertEqual(set(range(1, 6)), got)
+
+
+class TestAlphaNumericArbitrary(unittest.TestCase):
+    def setUp(self):
+        self.rand = random.Random(0)
+        self.rand_copy = random.Random(0)
+
+    def test_can_generate_a_random_string(self):
+        arbitrary = AlphaNumericArbitrary(random_funcs=self.rand)
+        self.assertIsInstance(arbitrary(), str)
+
+    def test_generates_different_strings(self):
+        arbitrary = AlphaNumericArbitrary(random_funcs=self.rand)
+        a = arbitrary()
+        b = arbitrary()
+        self.assertIsInstance(a, str)
+        self.assertIsInstance(b, str)
+        self.assertNotEqual(a, b)
+
+    def test_string_contains_only_selected_characters(self):
+        arbitrary = AlphaNumericArbitrary(random_funcs=self.rand, config={'len': 1000})
+        self.assertTrue(arbitrary().isalnum())
+        self.assertFalse(arbitrary().isalpha())
+
+    def test_string_is_of_specified_length(self):
+        arbitrary = AlphaNumericArbitrary(random_funcs=self.rand, config={'len': 10})
+        for _ in range(10):
+            self.assertEqual(10, len(arbitrary()))
+
+    def test_can_specify_length_range(self):
+        arbitrary = AlphaNumericArbitrary(random_funcs=self.rand, config={'min_len': 1, 'max_len': 5})
+        got = {len(arbitrary()) for _ in range(20)}
+        self.assertEqual(set(range(1, 6)), got)
+
+
 class TestDateArbitrary(unittest.TestCase):
     def setUp(self):
         self.rand = random.Random(0)
         self.rand_copy = random.Random(0)
+        self.start_ts = timegm(datetime(2018, 1, 1, tzinfo=timezone.utc).utctimetuple())
+        self.end_ts = timegm(datetime(2018, 12, 31, 23, 59, 59, tzinfo=timezone.utc).utctimetuple())
 
     def test_can_generate_a_random_date(self):
         arbitrary = DateArbitrary(random_funcs=self.rand, config={'min_year': 2018, 'max_year': 2018})
@@ -169,3 +227,33 @@ class TestDateArbitrary(unittest.TestCase):
         })
         got_hours = {arbitrary().hour for _ in range(10000)}
         self.assertEqual({3, 4, 5, 6, 7}, got_hours)
+
+    def test_can_generate_a_random_date_with_min_max_ts(self):
+        arbitrary = DateArbitrary(random_funcs=self.rand, config={'min_ts': self.start_ts, 'max_ts': self.end_ts})
+        self.assertIsInstance(arbitrary(), datetime)
+
+    def test_generates_different_dates_with_min_max_ts(self):
+        arbitrary = DateArbitrary(random_funcs=self.rand, config={'min_ts': self.start_ts, 'max_ts': self.end_ts})
+        a = arbitrary()
+        b = arbitrary()
+        self.assertIsInstance(a, datetime)
+        self.assertIsInstance(b, datetime)
+        self.assertNotEqual(a, b)
+
+    def test_date_only_generates_selected_time_range_with_min_max_ts(self):
+        arbitrary = DateArbitrary(random_funcs=self.rand, config={'min_ts': self.start_ts, 'max_ts': self.end_ts})
+        got_years = {arbitrary().year for _ in range(10000)}
+        self.assertEqual({2018}, got_years)
+
+    def test_date_only_generates_selected_time_range_with_slice_with_min_max_ts(self):
+        arbitrary = DateArbitrary(random_funcs=self.rand, config={
+            'min_ts': self.start_ts, 'max_ts': self.end_ts, 'mode': 'slice', 'min_hour': 3, 'max_hour': 7
+        })
+        got_hours = {arbitrary().hour for _ in range(10000)}
+        self.assertEqual({3, 4, 5, 6, 7}, got_hours)
+
+
+
+    def test_raises_error_if_mode_is_invalid(self):
+        with self.assertRaises(ValueError):
+            DateArbitrary(random_funcs=self.rand, config={'mode': 'invalid'})

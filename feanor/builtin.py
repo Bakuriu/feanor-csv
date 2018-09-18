@@ -2,19 +2,18 @@ import inspect
 import random
 import string
 from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
-from itertools import cycle, chain
+from itertools import cycle
 
 from .arbitrary import Arbitrary
-from .dsl.compiler import SimpleCompatibility, PairBasedCompatibility
+from .dsl.compiler import PairBasedCompatibility
 from .library import Library
-from .util import consecutive_pairs
 
 __all__ = [
     'Arbitrary',
     'IntArbitrary', 'FloatArbitrary',
     'StringArbitrary', 'AlphaArbitrary', 'AlphaNumericArbitrary',
     'DateArbitrary',
-    'MultiArbitrary', 'FixedArbitrary', 'CyclingArbitrary', 'RepeaterArbitrary'
+    'FixedArbitrary', 'CyclingArbitrary', 'RepeaterArbitrary'
 ]
 
 
@@ -128,9 +127,16 @@ class DateArbitrary(Arbitrary):
     def __init__(self, random_funcs, config=None):
         super().__init__(random_funcs, 'date', config)
         self._mode = self.config.get_mode('interval')
+        utc = timezone.utc
+        if self._mode not in ('interval', 'slice'):
+            raise ValueError(f'Invalid mode {repr(self._mode)}')
         if self.config.has_attrs('min_ts'):
             min_ts = self.config.min_ts
-            self._start_date = datetime.utcfromtimestamp(min_ts)
+            self._start_date = datetime.utcfromtimestamp(min_ts).replace(tzinfo=utc)
+            min_hour = self.config.get_min_hour(self._start_date.hour)
+            min_minute = self.config.get_min_minute(self._start_date.minute)
+            min_second = self.config.get_min_second(self._start_date.second)
+            self._start_date = self._start_date.replace(hour=min_hour, minute=min_minute, second=min_second)
         else:
             min_year = self.config.get_min_year(MINYEAR)
             min_month = self.config.get_min_month(1)
@@ -138,12 +144,15 @@ class DateArbitrary(Arbitrary):
             min_hour = self.config.get_min_hour(0)
             min_minute = self.config.get_min_minute(0)
             min_second = self.config.get_min_second(0)
-            self._start_date = datetime(min_year, min_month, min_day, min_hour, min_minute, min_second,
-                                        tzinfo=timezone.utc)
+            self._start_date = datetime(min_year, min_month, min_day, min_hour, min_minute, min_second, tzinfo=utc)
 
         if self.config.has_attrs('max_ts'):
             max_ts = self.config.max_ts
-            self._end_date = datetime.utcfromtimestamp(max_ts)
+            self._end_date = datetime.utcfromtimestamp(max_ts).replace(tzinfo=utc)
+            max_hour = self.config.get_max_hour(self._end_date.hour)
+            max_minute = self.config.get_max_minute(self._end_date.minute)
+            max_second = self.config.get_max_second(self._end_date.second)
+            self._end_date = self._end_date.replace(hour=max_hour, minute=max_minute, second=max_second)
         else:
             max_year = self.config.get_max_year(MAXYEAR)
             max_month = self.config.get_max_month(12)
@@ -151,8 +160,7 @@ class DateArbitrary(Arbitrary):
             max_hour = self.config.get_max_hour(23)
             max_minute = self.config.get_max_minute(59)
             max_second = self.config.get_max_second(59)
-            self._end_date = datetime(max_year, max_month, max_day, max_hour, max_minute, max_second,
-                                      tzinfo=timezone.utc)
+            self._end_date = datetime(max_year, max_month, max_day, max_hour, max_minute, max_second, tzinfo=utc)
 
     def __call__(self):
         if self._mode == 'interval':
@@ -160,7 +168,7 @@ class DateArbitrary(Arbitrary):
             end_ts = self._end_date.timestamp()
             timestamp = self._random_funcs.randint(start_ts, end_ts)
             return datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=timestamp)
-        elif self._mode == 'slice':
+        else:
             max_days_difference = (self._end_date - self._start_date).days
             num_day = self._random_funcs.randint(0, max_days_difference)
             date = self._start_date + timedelta(days=num_day)
@@ -168,24 +176,6 @@ class DateArbitrary(Arbitrary):
             minute = self._random_funcs.randint(self._start_date.minute, self._end_date.minute)
             second = self._random_funcs.randint(self._start_date.second, self._end_date.second)
             return datetime(date.year, date.month, date.day, hour, minute, second)
-        else:
-            raise ValueError('Invalid mode {!r}'.format(self._mode))
-
-
-class MultiArbitrary(Arbitrary):
-    def __init__(self, random_funcs, arbitraries, config=None):
-        super().__init__(random_funcs, 'multi', config)
-        self._arbitraries = tuple(arbitraries)
-
-    @property
-    def number_of_columns(self):
-        return len(self._arbitraries)
-
-    def __call__(self):
-        return tuple(arbitrary() for arbitrary in self._arbitraries)
-
-    def __getitem__(self, item):
-        return self._arbitraries[item]
 
 
 class RepeaterArbitrary(Arbitrary):
