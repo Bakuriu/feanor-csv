@@ -28,8 +28,8 @@ class TestParser(ParsingTestCase):
         self.assertEqual(TypeNameNode.of('int', config={'min': 10, 'max': 15}), got)
 
     def test_can_parse_type_with_arbitrary_and_config(self):
-        got = self.parser.parse('%int:fixed{"value": 10}')
-        self.assertEqual(TypeNameNode.of('int', 'fixed', config={'value': 10}), got)
+        got = self.parser.parse('%int:cycle{"values": [1,2,3]}')
+        self.assertEqual(TypeNameNode.of('int', 'cycle', config={'values': [1,2,3]}), got)
 
     def test_can_parse_reference(self):
         got = self.parser.parse('@int')
