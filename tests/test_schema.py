@@ -1,3 +1,4 @@
+import re
 import unittest
 from types import SimpleNamespace
 from unittest import TestCase
@@ -99,6 +100,21 @@ class TestSchema(unittest.TestCase):
         self.assertEqual('int', schema.arbitraries[0].type)
         self.assertEqual({}, schema.arbitraries[0].config)
 
+    def test_str(self):
+        schema = Schema()
+        schema.add_arbitrary('my_arbitrary', type='int')
+        schema.define_column('A', arbitrary='my_arbitrary')
+        schema.define_column('B', arbitrary='my_arbitrary')
+        str_regex = re.compile(r'''
+            Schema\(
+            \s*columns=\[[^]]+\],
+            \s*arbitraries=\{my_arbitrary:\s*\{'type':\s'int',\s'config':\s\{\}\}\},
+            \s*transformers=(\{'name':\s'(A|B)',\s*'transformer':\s<feanor\.schema\.ProjectionTransformer\sobject\sat\s\w+>,\s*'inputs':\s\[[^]]+\],\s'outputs':\s\[[^]]+\]\},?\s*)+
+            show_header=True\s*
+            \)
+        ''', re.VERBOSE)
+        self.assertRegex(str(schema), str_regex)
+
     def test_cannot_specify_both_arbitrary_and_type(self):
         schema = Schema()
         with self.assertRaises(TypeError):
@@ -124,6 +140,11 @@ class TestSchema(unittest.TestCase):
             schema.add_arbitrary('my_arbitrary', type='int')
 
         self.assertEqual("Arbitrary 'my_arbitrary' is already defined.", str(ctx.exception))
+
+    def test_raises_error_if_specified_arbitrary_is_not_defined(self):
+        schema = Schema()
+        with self.assertRaises(SchemaError):
+            schema.define_column('A', arbitrary='non-existent')
 
     def test_raises_error_if_register_same_arbitrary_multiple_times(self):
         schema = Schema()
@@ -247,28 +268,53 @@ class TestChoiceTransformer(TestCase):
         with self.assertRaises(ValueError):
             ChoiceTransformer(2, 0.75, 0.75)
 
+    def test_raises_error_if_too_many_inputs(self):
+        transformer = ChoiceTransformer(2, 0.5, 0.5)
+        with self.assertRaises(ValueError):
+            transformer([0, 1, 2, 3])
+
+    def test_raises_error_if_too_few_inputs(self):
+        transformer = ChoiceTransformer(2, 0.5, 0.5)
+        with self.assertRaises(ValueError):
+            transformer([0])
+
     def test_always_return_left_input_if_probability_is_one(self):
-        transformer = ChoiceTransformer(1, 1.0, 0.0)
+        transformer = ChoiceTransformer(2, 1.0, 0.0)
         for _ in range(10):
             self.assertEqual([0], transformer([0, 1]))
 
     def test_always_return_right_input_if_probability_is_one(self):
-        transformer = ChoiceTransformer(1, 0.0, 1.0)
+        transformer = ChoiceTransformer(2, 0.0, 1.0)
         for _ in range(10):
             self.assertEqual([1], transformer([0, 1]))
 
     def test_always_return_none_if_probability_sum_is_zero(self):
-        transformer = ChoiceTransformer(1, 0.0, 0.0)
+        transformer = ChoiceTransformer(2, 0.0, 0.0)
         for _ in range(10):
             self.assertEqual((None,), transformer([0, 1]))
 
     def test_returns_all_values_if_probability_is_not_zero_or_one_and_sums_to_1(self):
-        transformer = ChoiceTransformer(1, 0.5, 0.5)
+        transformer = ChoiceTransformer(2, 0.5, 0.5)
         self.assertEqual({0, 1}, {transformer([0, 1])[0] for _ in range(50)})
 
     def test_returns_all_values_and_none_if_probability_is_not_zero_or_one_and_sums_less_than_1(self):
-        transformer = ChoiceTransformer(1, 0.3, 0.3)
+        transformer = ChoiceTransformer(2, 0.3, 0.3)
         self.assertEqual({0, 1, None}, {transformer([0, 1])[0] for _ in range(50)})
+
+    def test_equal_transformer_are_equal(self):
+        transformer = ChoiceTransformer(2, 0.3, 0.3)
+        other_transformer = ChoiceTransformer(2, 0.3, 0.3)
+        self.assertEqual(transformer, other_transformer)
+
+    def test_different_transformer_are_not_equal(self):
+        transformer = ChoiceTransformer(2, 0.3, 0.3)
+        other_transformer = ChoiceTransformer(2, 0.25, 0.3)
+        self.assertNotEqual(transformer, other_transformer)
+
+    def test_equal_transformer_have_same_hash(self):
+        transformer = ChoiceTransformer(2, 0.3, 0.3)
+        other_transformer = ChoiceTransformer(2, 0.3, 0.3)
+        self.assertEqual(hash(transformer), hash(other_transformer))
 
 
 class TestMergeTransformer(TestCase):
@@ -280,6 +326,22 @@ class TestMergeTransformer(TestCase):
         transformer = MergeTransformer(4)
         self.assertEqual(("ac", "bd"), transformer(["a", "b", "c", "d"]))
 
+    def test_equal_transformers_are_equal(self):
+        transformer = MergeTransformer(4)
+        other_transformer = MergeTransformer(4)
+        self.assertEqual(transformer, other_transformer)
+
+    def test_different_transformers_are_not_equal(self):
+        transformer = MergeTransformer(4)
+        other_transformer = MergeTransformer(6)
+        self.assertNotEqual(transformer, other_transformer)
+
+    def test_equal_transformers_have_same_hash(self):
+        transformer = MergeTransformer(4)
+        other_transformer = MergeTransformer(4)
+        self.assertEqual(hash(transformer), hash(other_transformer))
+
+
 class TestIdentityTransformer(TestCase):
     def test_can_return_identity_of_a_single_value(self):
         transformer = IdentityTransformer(1)
@@ -287,6 +349,70 @@ class TestIdentityTransformer(TestCase):
 
     def test_can_return_identity_of_multiple_values(self):
         transformer = IdentityTransformer(3)
-        self.assertEqual((0, 1, 2), transformer([0, 1, 2 ]))
+        self.assertEqual((0, 1, 2), transformer([0, 1, 2]))
+
+    def test_equal_transformers_are_equal(self):
+        transformer = IdentityTransformer(1)
+        other_transformer = IdentityTransformer(1)
+        self.assertEqual(transformer, other_transformer)
+
+    def test_different_transformers_are_not_equal(self):
+        transformer = IdentityTransformer(1)
+        other_transformer = IdentityTransformer(3)
+        self.assertNotEqual(transformer, other_transformer)
+
+    def test_equal_transformers_have_same_hash(self):
+        transformer = IdentityTransformer(1)
+        other_transformer = IdentityTransformer(1)
+        self.assertEqual(hash(transformer), hash(other_transformer))
 
 
+class TestProjectionTransformer(TestCase):
+    def test_can_return_projection(self):
+        transformer = ProjectionTransformer(2, 1)
+        self.assertEqual((1,), transformer([0, 1]))
+
+    def test_equal_transformers_are_equal(self):
+        transformer = ProjectionTransformer(2, 0)
+        other_transformer = ProjectionTransformer(2, 0)
+        self.assertEqual(transformer, other_transformer)
+
+    def test_different_transformers_are_not_equal(self):
+        transformer = ProjectionTransformer(2, 0)
+        other_transformer = ProjectionTransformer(2, 1)
+        self.assertNotEqual(transformer, other_transformer)
+
+    def test_equal_transformers_have_same_hash(self):
+        transformer = ProjectionTransformer(2, 0)
+        other_transformer = ProjectionTransformer(2, 0)
+        self.assertEqual(hash(transformer), hash(other_transformer))
+
+
+class TestFunctionalTransformer(TestCase):
+    def test_can_apply_function_with_one_input_and_output(self):
+        transformer = FunctionalTransformer(lambda x: x + 1)
+        self.assertEqual((1,), transformer([0]))
+
+    def test_can_apply_function_with_more_inputs_and_one_output(self):
+        transformer = FunctionalTransformer(lambda x, y, z: x + y + z)
+        self.assertEqual((3,), transformer([0, 1, 2]))
+
+    def test_can_apply_function_with_one_input_and_more_outputs(self):
+        transformer = FunctionalTransformer(lambda x: (x, x + 1, x + 2), num_outputs=3)
+        self.assertEqual((0, 1, 2), transformer([0]))
+
+    def test_can_apply_function_with_more_inputs_and_more_outputs(self):
+        transformer = FunctionalTransformer(lambda x, y: (x, x + 1, x + y, y - x), num_outputs=4)
+        self.assertEqual((0, 1, 7, 7), transformer([0, 7]))
+
+    def test_can_equal_with_same_function(self):
+        func = lambda x, y: (x, x + 1, x + y, y - x)
+        transformer = FunctionalTransformer(func, num_outputs=4)
+        other_transformer = FunctionalTransformer(func, num_outputs=4)
+        self.assertEqual(transformer, other_transformer)
+
+    def test_equal_transformers_have_same_hash(self):
+        func = lambda x, y: (x, x + 1, x + y, y - x)
+        transformer = FunctionalTransformer(func, num_outputs=4)
+        other_transformer = FunctionalTransformer(func, num_outputs=4)
+        self.assertEqual(hash(transformer), hash(other_transformer))

@@ -1,7 +1,5 @@
-import random
-import re
-import json
 import inspect
+import random
 from abc import ABCMeta, abstractmethod
 from collections import Counter
 from itertools import chain
@@ -12,19 +10,6 @@ from .util import to_string_list
 
 class SchemaError(ValueError):
     pass
-
-
-class SchemaParsingError(SchemaError):
-    pass
-
-
-class MissingVersionError(SchemaParsingError):
-    pass
-
-
-class InvalidVersionNumberError(SchemaParsingError):
-    def __init__(self, version):
-        super().__init__(repr(version))
 
 
 class Schema:
@@ -140,19 +125,6 @@ class Schema:
             'outputs': outputs,
         })
 
-    @classmethod
-    def parse(cls, text):
-        data = json.loads(text)
-        if not 'version' in data:
-            raise MissingVersionError()
-        elif not isinstance(data['version'], str) or not re.match(r'^\d+\.\d+$', data['version']):
-            raise InvalidVersionNumberError(data['version'])
-
-        schema = cls()
-        for name in data['header']:
-            schema.define_column(name)
-        return schema
-
 
 class Transformer(metaclass=ABCMeta):
     def __init__(self, arity, num_outputs):
@@ -198,6 +170,7 @@ class ProjectionTransformer(Transformer):
         self._index = index
 
     def __call__(self, inputs):
+        super().__call__(inputs)
         return (inputs[self._index],)
 
     def __eq__(self, other):
@@ -222,15 +195,16 @@ class ChoiceTransformer(Transformer):
         self._right_config += self._left_config
 
     def __call__(self, inputs):
-        left_inputs = inputs[:self.arity]
-        right_inputs = inputs[self.arity:]
+        super().__call__(inputs)
+        left_inputs = inputs[:self.num_outputs]
+        right_inputs = inputs[self.num_outputs:]
         value = random.random()
         if value <= self._left_config:
             return left_inputs
         elif value <= self._right_config:
             return right_inputs
         else:
-            return (None,) * self.arity
+            return (None,) * self.num_outputs
 
     def __eq__(self, other):
         return isinstance(other, ChoiceTransformer) and self.__dict__ == other.__dict__
@@ -241,9 +215,10 @@ class ChoiceTransformer(Transformer):
 
 class MergeTransformer(Transformer):
     def __init__(self, arity):
-        super().__init__(arity, arity//2)
+        super().__init__(arity, arity // 2)
 
     def __call__(self, inputs):
+        super().__call__(inputs)
         left_inputs = inputs[:self.num_outputs]
         right_inputs = inputs[self.num_outputs:]
         return tuple(x + y for x, y in zip(left_inputs, right_inputs))
@@ -260,6 +235,7 @@ class IdentityTransformer(Transformer):
         super().__init__(arity, arity)
 
     def __call__(self, inputs):
+        super().__call__(inputs)
         return tuple(inputs)
 
     def __eq__(self, other):
