@@ -469,6 +469,13 @@ class TestPairBasedCompatibility(unittest.TestCase):
         self.assertTrue(compatibility.is_compatible(left_type, right_type))
         self.assertTrue(compatibility.is_compatible(right_type, left_type))
 
+    def test_simple_is_compatible_with_choice_type(self):
+        compatibility = self._make_compat({('int', 'int', 'float', 'float')})
+        left_type = SimpleType('int')
+        right_type = ChoiceType([SimpleType('int'), SimpleType('float')])
+        self.assertTrue(compatibility.is_compatible(left_type, right_type))
+        self.assertTrue(compatibility.is_compatible(right_type, left_type))
+
 
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
@@ -996,3 +1003,16 @@ class TestCompiler(unittest.TestCase):
         )
         with self.assertRaises(TypeError):
             self.compiler.compile(expr, column_names=['transformer#1#0'])
+
+    def test_example_with_merge_incompatible_num_of_outputs_more_outputs(self):
+        expr = BinaryOpNode.of(
+            '+',
+            BinaryOpNode.of('.', TypeNameNode.of('int'), BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))),
+            BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int'))
+        )
+        with self.assertRaises(TypeError):
+            self.compiler.compile(expr, column_names=['transformer#1#0'])
+
+    def test_raises_error_with_invalid_binary_operator(self):
+        with self.assertRaises(TypeError):
+            self.compiler.compile(BinaryOpNode.of('<', TypeNameNode.of('int'), TypeNameNode.of('float')))

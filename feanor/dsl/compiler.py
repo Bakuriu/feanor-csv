@@ -59,10 +59,8 @@ class SimpleCompatibility(Compatibility):
                             f'Number of outputs differs: 1 != {second_type.num_outputs}.')
         if isinstance(second_type, ParallelType):
             return self.get_upperbound(first_type, second_type.types[0])
-
-        if isinstance(second_type, ChoiceType):
+        else:
             return self._choice_upperbound(second_type, first_type)
-        raise TypeError(f'Unknown type {second_type}')
 
     def _get_composites_upperbound(self, first_type, second_type):
         if first_type.num_outputs != second_type.num_outputs:
@@ -74,11 +72,8 @@ class SimpleCompatibility(Compatibility):
 
         if isinstance(first_type, ChoiceType):
             return self._choice_upperbound(first_type, second_type)
-
-        if isinstance(second_type, ChoiceType):
+        else:
             return self._choice_upperbound(second_type, first_type)
-
-        raise TypeError(f'Unknown types {first_type} and/or {second_type}')
 
     def _choice_upperbound(self, main: ChoiceType, other: Type) -> ChoiceType:
         return ChoiceType(self.get_upperbound(t, other) for t in main.types)
