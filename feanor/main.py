@@ -72,7 +72,7 @@ def get_parser():
                                default=sys.stdout, type=argparse.FileType('w'))
 
     schema_subparsers = parser.add_subparsers(title='Schema definition', help='Commands to define a CSV schema.',
-                                              dest='schema_definition_type')
+                                              dest='schema_definition_type', metavar='{expr,cmdline}')
     simple_schema_cmdline = schema_subparsers.add_parser('cmdline', aliases=['opts', 'options'],
                                                          parents=[common_parser])
 
