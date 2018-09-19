@@ -29,6 +29,8 @@ def parse_arguments(args=None):
         sys.stderr.write('{}: error: {}\n'.format(parser.prog, str(e)))
         sys.exit(2)
     else:
+        if args.random_seed is not None:
+            library.random_funcs.seed(args.random_seed)
         return schema, library, args.output_file, size_dict
 
 
@@ -55,11 +57,12 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.',
                         dest='show_header')
-    parser.add_argument('--library', default='builtin', help='The library to use.')
-    parser.add_argument('--global-configuration', default={}, type=_parse_global_configuration,
+    parser.add_argument('-L', '--library', default='builtin', help='The library to use.')
+    parser.add_argument('-C', '--global-configuration', default={}, type=_parse_global_configuration,
                         help='The global configuration for arbitraries.')
-    parser.add_argument('--random-module', default='random', type=import_module,
+    parser.add_argument('-r', '--random-module', default='random', type=import_module,
                         help='The random module to be used to generate random data.')
+    parser.add_argument('-s', '--random-seed', type=ast.literal_eval, help='The random seed to use for this run.')
     parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     size_options = parser.add_mutually_exclusive_group(required=True)
     size_options.add_argument('-n', '--num-rows', type=int, help='The number of rows of the produced CSV', metavar='N')

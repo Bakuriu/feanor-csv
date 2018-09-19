@@ -11,43 +11,29 @@ Release `1.0.0` will provide a stable API and stable command line interface for 
 
 ```
 $ feanor --help
-usage: feanor [-h] [--no-header] (-n N | -b N | --stream-mode STREAM_MODE)
-              {cmdline,opts,options,expr} ...
+usage: feanor [-h] [--no-header] [-L LIBRARY] [-C GLOBAL_CONFIGURATION]
+              [-r RANDOM_MODULE] [-s RANDOM_SEED] [--version]
+              (-n N | -b N | --stream-mode STREAM_MODE)
+              {expr,cmdline} ...
 
 optional arguments:
   -h, --help            show this help message and exit
   --no-header           Do not add header to the output.
+  -L LIBRARY, --library LIBRARY
+                        The library to use.
+  -C GLOBAL_CONFIGURATION, --global-configuration GLOBAL_CONFIGURATION
+                        The global configuration for arbitraries.
+  -r RANDOM_MODULE, --random-module RANDOM_MODULE
+                        The random module to be used to generate random data.
+  -s RANDOM_SEED, --random-seed RANDOM_SEED
+                        The random seed to use for this run.
+  --version             show program's version number and exit
   -n N, --num-rows N    The number of rows of the produced CSV
   -b N, --num-bytes N   The approximate number of bytes of the produced CSV
   --stream-mode STREAM_MODE
 
 Schema definition:
-  {cmdline,opts,options,expr}
-                        Commands to define a CSV schema.
-$ feanor cmdline --help
-usage: feanor cmdline [-h] -c NAME EXPR [-d NAME EXPR] [OUTPUT-FILE]
-
-positional arguments:
-  OUTPUT-FILE           The output file name.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c NAME EXPR, --column NAME EXPR
-                        Add a column with the given name.
-  -d NAME EXPR, --define NAME EXPR
-                        Define a Feanor expression with the given name and
-                        type.
-$ feanor expr --help
-usage: feanor expr [-h] [-c NAMES] [OUTPUT-FILE] SCHEMA_EXPR
-
-positional arguments:
-  OUTPUT-FILE           The output file name.
-  SCHEMA_EXPR           The expression defining the schema
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c NAMES, --columns NAMES
-                        A CSV comma-separated header line.
+  {expr,cmdline}        Commands to define a CSV schema.
 ```
 
 
@@ -116,29 +102,43 @@ For example `%int + %float` is an expression that evaluates to the sum of a rand
 
 ## Examples
 
+**NOTE:** the following examples all specify the option `-s 0`. This is used solely for reproducibility reason.
+The common use cases for Feanor do not need to specify a random seed and in fact doing so often defeats the purpose of the tool.
+
+### Using the `cmdline` subcommand
+
 Generate 10 rows with random integers:
 
 ```
-$ feanor -n 10 cmdline -c a '%int' -c b '%int'
+$ feanor -s 0 -n 10 cmdline -c a '%int' -c b '%int'
 a,b
-560419,658031
-655804,421309
-167612,374010
-749885,652208
-769247,842866
-99285,979394
-985242,786600
-291957,485927
-390879,830346
-528892,930577
+885440,403958
+794772,933488
+441001,42450
+271493,536110
+509532,424604
+962838,821872
+870163,318046
+499748,375441
+611720,934973
+952225,229053
 ```
 
 Generate about 1 kilobyte of rows with 2 random integers in them and write result to `/tmp/out.csv`:
 
 ```
-$ feanor -b 1024 cmdline -c a '%int' -c b '%int'  /tmp/out.csv
-$ ls -l /tmp/out.csv 
--rw-rw-r-- 1 user user 1027 ago  3 00:17 /tmp/out.csv
+$ feanor -s 0 -b 1024 cmdline -c a '%int' -c b '%int'  /tmp/out.csv
+$ head /tmp/out.csv 
+a,b
+885440,403958
+794772,933488
+441001,42450
+271493,536110
+509532,424604
+962838,821872
+870163,318046
+499748,375441
+611720,934973
 ```
 
 
@@ -146,33 +146,122 @@ $ ls -l /tmp/out.csv
 Generate 10 rows with random integers, the first column between `0` and `10`, the second column between `0` and `1000`:
 
 ```
-$ feanor -n 10 cmdline -c a '%int{"min":0, "max":10}' -c b '%int{"min": 0, "max":1000}'
+$ feanor -s 0 -n 10 cmdline -c a '%int{"min":0, "max":10}' -c b '%int{"min": 0, "max":1000}'
 a,b
-3,233
-7,414
-9,873
-9,940
-6,759
-9,743
-2,17
-9,346
-6,559
-4,305
+6,776
+6,41
+4,988
+8,497
+6,940
+4,991
+7,366
+9,913
+3,516
+2,288
 ```
 
 Generate 10 rows with random integers and their sum:
 
 ```
-$ feanor -n 10 cmdline -c a '%int' -c b '%int' -c c '@a+@b'
+$ feanor -s 0 -n 10 cmdline -c a '%int' -c b '%int' -c c '@a+@b'
 a,b,c
-959911,805488,1765399
-963573,781193,1744766
-825514,327790,1153304
-304667,455607,760274
-529196,891481,1420677
-100948,692883,793831
-991054,975422,1966476
-249764,741283,991047
-141396,606592,747988
-979772,929347,1909119
+885440,403958,1289398
+794772,933488,1728260
+441001,42450,483451
+271493,536110,807603
+509532,424604,934136
+962838,821872,1784710
+870163,318046,1188209
+499748,375441,875189
+611720,934973,1546693
+952225,229053,1181278
+```
+
+### Using the `expr` subcommand
+
+Generate 10 rows with random integers:
+
+```
+$ feanor -s 0 -n 10 expr -c a,b '%int·%int'
+a,b
+885440,403958
+794772,933488
+441001,42450
+271493,536110
+509532,424604
+962838,821872
+870163,318046
+499748,375441
+611720,934973
+952225,229053
+```
+
+Generate about 1 kilobyte of rows with 2 random integers in them and write result to `/tmp/out.csv`:
+
+```
+$ feanor -s 0 -b 1024 expr -c a,b /tmp/out.csv '%int·%int'
+$ head /tmp/out.csv 
+a,b
+885440,403958
+794772,933488
+441001,42450
+271493,536110
+509532,424604
+962838,821872
+870163,318046
+499748,375441
+611720,934973
+```
+
+
+
+Generate 10 rows with random integers, the first column between `0` and `10`, the second column between `0` and `1000`:
+
+```
+$ feanor -s 0 -n 10 expr -c a,b '%int{"min":0, "max":10}·%int{"min": 0, "max":1000}'
+a,b
+6,776
+6,41
+4,988
+8,497
+6,940
+4,991
+7,366
+9,913
+3,516
+2,288
+```
+
+Generate 10 rows with random integers and their sum:
+
+```
+$ feanor -s 0 -n 10 expr -c a,b,c '(%int)=a·(%int)=b·(@a+@b)'
+a,b,c
+885440,403958,1289398
+794772,933488,1728260
+441001,42450,483451
+271493,536110,807603
+509532,424604,934136
+962838,821872,1784710
+870163,318046,1188209
+499748,375441,875189
+611720,934973,1546693
+952225,229053,1181278
+```
+
+or also:
+
+```
+$ feanor -s 0 -n 10 expr -c a,b,c 'let a:=%int b:=%int in @a·@b·(@a+@b)'
+a,b,c
+885440,403958,1289398
+794772,933488,1728260
+441001,42450,483451
+271493,536110,807603
+509532,424604,934136
+962838,821872,1784710
+870163,318046,1188209
+499748,375441,875189
+611720,934973,1546693
+952225,229053,1181278
 ```
