@@ -1,6 +1,9 @@
-import argparse
+import io
+import os
 import random
+import argparse
 import unittest
+from contextlib import redirect_stderr
 from types import SimpleNamespace
 
 from feanor.builtin import BuiltInLibrary
@@ -9,7 +12,7 @@ from feanor.main import (
     make_schema_cmdline, get_library, _parse_global_configuration, make_schema_expr,
     get_schema_size_and_library_params,
 )
-from feanor.schema import IdentityTransformer, Schema
+from feanor.schema import IdentityTransformer
 
 
 class TestMakeSchemaCmdline(unittest.TestCase):
@@ -129,9 +132,10 @@ class TestMakeSchemaExpr(unittest.TestCase):
 class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
     def test_can_get_params_for_cmdline_with_number_of_rows(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='cmdline',
             columns=[('A', '@bob'), ('B', '%int')],
             expressions_defined=[('bob', '%int')],
@@ -154,9 +158,10 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
 
     def test_can_get_params_for_cmdline_with_num_bytes(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='cmdline',
             columns=[('A', '@bob'), ('B', '%int')],
             expressions_defined=[('bob', '%int')],
@@ -179,9 +184,10 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
 
     def test_can_get_params_for_cmdline_with_stream_mode(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='cmdline',
             columns=[('A', '@bob'), ('B', '%int')],
             expressions_defined=[('bob', '%int')],
@@ -204,9 +210,10 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
 
     def test_can_get_params_for_expr_with_number_of_rows(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='expr',
             schema='%int . %int',
             columns_names='A,B',
@@ -229,9 +236,10 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
 
     def test_can_get_params_for_expr_with_num_bytes(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='expr',
             schema='%int . %int',
             columns_names='A,B',
@@ -254,9 +262,10 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
 
     def test_can_get_params_for_expr_with_stream_mode(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='expr',
             schema='%int . %int',
             columns_names='A,B',
@@ -279,25 +288,89 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
 
     def test_raises_error_with_invalid_schema_definition_type(self):
         args = SimpleNamespace(
-            library='builtin',
+            library='feanor.builtin',
             global_configuration={},
             random_module=random,
+            random_seed=None,
             schema_definition_type='invalid',
         )
         with self.assertRaises(ValueError):
             get_schema_size_and_library_params(args)
 
+    def test_can_set_random_seed(self):
+        args = SimpleNamespace(
+            library='feanor.builtin',
+            global_configuration={},
+            random_module=random,
+            random_seed=0,
+            schema_definition_type='cmdline',
+            columns=[('A', '@bob'), ('B', '%int')],
+            expressions_defined=[('bob', '%int')],
+            show_header=True,
+            num_rows=10,
+            stream_mode=None,
+            num_bytes=None,
+        )
+        _, library, _ = get_schema_size_and_library_params(args)
+        self.assertEqual(0.8444218515250481, library.random_funcs.random())
+        self.assertEqual(0.7579544029403025, library.random_funcs.random())
+        self.assertEqual(0.420571580830845, library.random_funcs.random())
+
 
 class TestGetLibrary(unittest.TestCase):
+    def setUp(self):
+        self.fake_modules_dir = os.path.join(os.path.dirname(__file__), 'fake_modules')
+
     def test_can_get_builtin_library(self):
-        library = get_library('builtin', {}, random)
+        library = get_library('feanor.builtin', {}, random)
         self.assertIsInstance(library, BuiltInLibrary)
         self.assertEqual({}, library.global_configuration)
         self.assertIs(random, library.random_funcs)
 
-    def test_raises_error_if_invalid_name(self):
-        with self.assertRaises(ValueError):
+    def test_exits_with_code_one_error_if_invalid_name(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as e:
             get_library('invalid', {}, random)
+        self.assertEqual(1, e.exception.code)
+
+    def test_exits_with_code_one_error_if_library_requests_exit_during_import(self):
+        output = io.StringIO()
+        with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exits.py'), {}, random)
+        self.assertEqual(1, e.exception.code)
+        self.assertRegex(new_stderr.getvalue(),
+                         r"Exit requested while importing library '[^']+/fake_library_exits.py'. Exit code 7")
+
+    def test_exits_with_code_one_error_if_library_raises_exception_during_import(self):
+        output = io.StringIO()
+        with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exception.py'), {}, random)
+        self.assertEqual(1, e.exception.code)
+        self.assertRegex(new_stderr.getvalue(),
+                         r"Exception while importing library '[^']+/fake_library_exception.py'.\nException: error!\n")
+
+    def test_exits_with_code_one_error_if_library_raises_fatal_error_during_import(self):
+        output = io.StringIO()
+        with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_fatal_error.py'), {}, random)
+        self.assertEqual(1, e.exception.code)
+        self.assertRegex(new_stderr.getvalue(),
+                         r"Fatal error while importing library '[^']+/fake_library_fatal_error.py'.\nBaseException: fatal error!\n")
+
+    def test_exits_with_code_one_error_if_library_raises_exception_during_initialization(self):
+        output = io.StringIO()
+        with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exception_on_init.py'), {}, random)
+        self.assertEqual(1, e.exception.code)
+        self.assertRegex(new_stderr.getvalue(),
+                         r"Exception while initializing library '[^']+/fake_library_exception_on_init.py'.\nException: error!\n")
+
+    def test_exits_with_code_one_error_if_library_raises_fatal_error_during_initialization(self):
+        output = io.StringIO()
+        with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_fatal_error_on_init.py'), {}, random)
+        self.assertEqual(1, e.exception.code)
+        self.assertRegex(new_stderr.getvalue(),
+                         r"Fatal error while initializing library '[^']+/fake_library_fatal_error_on_init.py'.\nBaseException: fatal error!\n")
 
 
 class TestParseGlobalConfiguration(unittest.TestCase):

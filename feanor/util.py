@@ -1,4 +1,8 @@
+import os
+import sys
 import inspect
+from importlib import import_module
+from importlib.util import spec_from_file_location, module_from_spec
 
 from functools import singledispatch, update_wrapper
 
@@ -116,3 +120,49 @@ def consecutive_pairs(sequence):
     for next_element in iterable:
         yield (cur_element, next_element)
         cur_element = next_element
+
+
+def load_python_module(path_or_module_name):
+    """Import a python module given a path or a module name.
+
+    The argument can either be the module name, in which case the `PYTHONPATH` is checked to import the module:
+
+        >>> try:
+        ...     os = load_python_module('os')
+        ... except: pass
+        ...
+        >>> hasattr(os, 'linesep')
+        True
+
+    Or it can also be the path to the `.py` file as shown below:
+
+        >>> path = os.path.join(os.path.dirname(os.__file__), 'hashlib.py')
+        >>> try:
+        ...     hashlib = load_python_module(path)
+        ... except: pass
+        ...
+        >>> hasattr(hashlib, 'sha512')
+        True
+
+    """
+    if path_or_module_name.endswith('.py'):
+        location = os.path.abspath(path_or_module_name)
+        module_name = os.path.splitext(os.path.basename(path_or_module_name))[0]
+        spec = spec_from_file_location(module_name, location)
+        module = module_from_spec(spec)
+        spec.loader.exec_module(module)
+        sys.modules[module_name] = module
+        return module
+    return import_module(path_or_module_name)
+
+
+def cls_name(instance):
+    """Return the name of the class of the instance.
+
+        >>> cls_name({})
+        'dict'
+        >>> cls_name(AttributeError('attr'))
+        'AttributeError'
+
+    """
+    return instance.__class__.__name__

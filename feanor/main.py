@@ -1,19 +1,18 @@
-import argparse
+import io
 import ast
 import csv
-import io
 import sys
-from importlib import import_module
+import argparse
 from itertools import starmap
 
 from . import __version__
-from .builtin import BuiltInLibrary
+from .util import load_python_module, cls_name
 from .dsl import get_parser as dsl_get_parser
 from .dsl.compiler import Compiler
 from .engine import generate_data
 
 
-def main(): # pragma: no cover
+def main():  # pragma: no cover
     schema, library, output_file, size_dict = parse_arguments()
     generate_data(schema, library, output_file, **size_dict)
 
@@ -29,12 +28,12 @@ def parse_arguments(args=None):
         sys.stderr.write('{}: error: {}\n'.format(parser.prog, str(e)))
         sys.exit(2)
     else:
-        if args.random_seed is not None:
-            library.random_funcs.seed(args.random_seed)
         return schema, library, args.output_file, size_dict
 
 
 def get_schema_size_and_library_params(args):
+    if args.random_seed is not None:
+        args.random_module.seed(args.random_seed)
     library = get_library(args.library, args.global_configuration, args.random_module)
     if args.schema_definition_type in ('cmdline', 'options', 'opts'):
         schema = make_schema_cmdline(args.columns, args.expressions_defined, args.show_header, library)
@@ -57,10 +56,10 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.',
                         dest='show_header')
-    parser.add_argument('-L', '--library', default='builtin', help='The library to use.')
+    parser.add_argument('-L', '--library', default='feanor.builtin', help='The library to use.')
     parser.add_argument('-C', '--global-configuration', default={}, type=_parse_global_configuration,
                         help='The global configuration for arbitraries.')
-    parser.add_argument('-r', '--random-module', default='random', type=import_module,
+    parser.add_argument('-r', '--random-module', default='random', type=load_python_module,
                         help='The random module to be used to generate random data.')
     parser.add_argument('-s', '--random-seed', type=ast.literal_eval, help='The random seed to use for this run.')
     parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
@@ -122,9 +121,26 @@ def make_schema_let_expression(definitions, col_names):
 
 
 def get_library(library_name, global_configuration, random_funcs):
-    if library_name == 'builtin':
-        return BuiltInLibrary(global_configuration, random_funcs)
-    raise ValueError('Invalid library: {!r}'.format(library_name))
+    try:
+        library_module = load_python_module(library_name)
+    except SystemExit as e:
+        print(f'Exit requested while importing library {repr(library_name)}. Exit code {e.code}', file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f'Exception while importing library {repr(library_name)}:\n{cls_name(e)}: {e}', file=sys.stderr)
+        sys.exit(1)
+    except BaseException as e:
+        print(f'Fatal error while importing library {repr(library_name)}:\n{cls_name(e)}: {e}', file=sys.stderr)
+        sys.exit(1)
+    else:
+        try:
+            return library_module.create_library(global_configuration, random_funcs)
+        except Exception as e:
+            print(f'Exception while initializing library {repr(library_name)}:\n{cls_name(e)}: {e}', file=sys.stderr)
+            sys.exit(1)
+        except BaseException as e:
+            print(f'Fatal error while initializing library {repr(library_name)}:\n{cls_name(e)}: {e}', file=sys.stderr)
+            sys.exit(1)
 
 
 def _parse_columns(columns):
@@ -132,11 +148,13 @@ def _parse_columns(columns):
     reader = csv.reader(in_file, delimiter=',')
     return next(reader)
 
+
 def _parse_global_configuration(configuration):
     value = ast.literal_eval(configuration)
     if not isinstance(value, dict):
         raise argparse.ArgumentTypeError
     return value
+
 
 if __name__ == '__main__':
     main()

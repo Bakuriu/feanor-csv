@@ -1,8 +1,8 @@
 import inspect
 import random
 import string
-from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
 from itertools import cycle
+from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
 
 from .arbitrary import Arbitrary
 from .dsl.compiler import PairBasedCompatibility
@@ -265,3 +265,8 @@ class BuiltInCompatibility(PairBasedCompatibility):
             ('int', 'int'), ('float', 'float'), ('int', 'float'),
             ('alpha', 'alnum', 'string'),
         })
+
+
+def create_library(global_configuration, random_funcs):
+    """Entry-point for the arbitrary library."""
+    return BuiltInLibrary(global_configuration, random_funcs)
