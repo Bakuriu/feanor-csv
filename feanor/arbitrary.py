@@ -19,7 +19,7 @@ class Arbitrary(metaclass=ABCMeta):
                              + to_string_list(self.required_config_keys()))
 
     @property
-    def type(self):
+    def type(self):  # pragma: no cover
         return self._type_name
 
     @property

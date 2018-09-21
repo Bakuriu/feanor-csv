@@ -108,7 +108,6 @@ class PairBasedCompatibility(SimpleCompatibility):
             prevs.append(a)
 
 
-
 class TypeInferencer:
     def __init__(self, compatibility, env=None, func_env=None):
         self.compatibility = compatibility
@@ -116,7 +115,7 @@ class TypeInferencer:
         self.func_env = func_env if func_env is not None else {}
 
     @overloaded
-    def infer(self, tree: ExprNode) -> Type:
+    def infer(self, tree: ExprNode) -> Type:  # pragma: no cover
         raise TypeError('Invalid node type: {}'.format(tree))
 
     @infer.register(TypeNameNode)
@@ -261,7 +260,7 @@ class Compiler:
         return self._schema
 
     @overloaded
-    def visitor(self, cur_node: ExprNode, *children_values):
+    def visitor(self, cur_node: ExprNode, *children_values):  # pragma: no cover
         raise TypeError('Invalid node ' + str(cur_node))
 
     @visitor.register(Identifier)

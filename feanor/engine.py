@@ -5,7 +5,8 @@ class Engine:
         self._generator = self._schema_to_generator(schema)
 
     def _schema_to_generator(self, schema):
-        arbitraries = {arbitrary.name: self._library.make_arbitrary(arbitrary.type, arbitrary.config) for arbitrary in schema.arbitraries}
+        arbitraries = {arbitrary.name: self._library.make_arbitrary(arbitrary.type, arbitrary.config) for arbitrary in
+                       schema.arbitraries}
         return DataGenerator(schema.columns, arbitraries, schema.transformers)
 
     @property
@@ -75,7 +76,7 @@ def _generate_data_stream(schema, library, output_file):
     def write_to_file(seq):
         output_file.write(','.join(map(str, seq)) + '\n')
 
-    for data in generator:
+    for data in generator:  # pragma: no cover
         write_to_file(data)
 
 

@@ -36,6 +36,12 @@ Schema definition:
   {expr,cmdline}        Commands to define a CSV schema.
 ```
 
+Checking the version:
+
+```
+$ feanor --version
+feanor 0.5.0
+```
 
 ## Arbitrary types
 
