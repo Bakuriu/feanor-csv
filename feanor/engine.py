@@ -19,8 +19,8 @@ class Engine:
         self._generator = self._schema_to_generator(schema)
 
     def _schema_to_generator(self, schema):
-        producers = {producer.name: self._library.make_producer(producer.type, producer.config) for producer in
-                       schema.producers}
+        factory = self._library.make_producer
+        producers = {producer.name: factory(producer.type, producer.config) for producer in schema.producers}
         return DataGenerator(schema.columns, producers, schema.transformers)
 
     @property
