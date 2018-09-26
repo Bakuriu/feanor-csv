@@ -1,3 +1,19 @@
+0.5.0 - 2018/09/21
+==================
+
+ * Bugfixes. Including:
+    - CSV files now always use comma as separator
+    - `date` producer now correctly generates dates in ranges
+ * Added `--library`, allowing the user to use custom producers in place of built-in ones.
+ * Added the ability to provide a `--global-configuration` to avoid configuration repetition.
+ * Changed type introducer token from `#` to `%`. This makes it easier to write expressions on the command line.
+ * Can specify the `--random-module` to use. It should provide an interface similar to the `random` module but this
+    allows to provide a cryptographically strong PRNG if needed.
+ * Can specify the `--random-seed`. This allows for reproducibility. Useful in tests mainly.
+ * Test coverage is now 100%.
+
+
+
 0.4.0 - 2018/08/29
 ==================
 
