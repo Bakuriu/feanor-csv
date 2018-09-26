@@ -18,7 +18,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/Bakuriu/feanor-csv',
     author='Giacomo Alzetta',
-    author_email='giacomo.alzetta@gmail.com',
+    author_email='giacomo.alzetta+feanor@gmail.com',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
