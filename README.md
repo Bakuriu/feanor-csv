@@ -40,7 +40,7 @@ Checking the version:
 
 ```
 $ feanor --version
-feanor 0.5.0
+feanor 0.6.0-alpha
 ```
 
 ## Producer types
