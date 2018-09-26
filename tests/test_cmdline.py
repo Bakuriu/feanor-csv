@@ -49,6 +49,17 @@ class TestCommandLine(unittest.TestCase):
         mock_sys_exit.assert_called_with(2)
 
     @patch('sys.exit')
+    def test_raises_error_if_number_of_columns_is_incorrect(self, mock_sys_exit):
+        try:
+            parse_arguments(['-n', '5', 'expr', '-c', 'a', '%int.%int'])
+        except TypeError:
+            # unfortunately argparse relies on sys.exit to "exit" a function, so when it
+            # is mocked the function returns without an issue with None and causes a TypeError.
+            pass
+
+        mock_sys_exit.assert_called_with(2)
+
+    @patch('sys.exit')
     def test_can_create_schema_with_one_column(self, _):
         schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '%int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)

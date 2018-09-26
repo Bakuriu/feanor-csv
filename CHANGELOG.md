@@ -1,3 +1,15 @@
+0.6.0 - NOT RELEASED YET
+========================
+
+ * Bugfixes:
+ 
+    | Issue Number     | Fix description                                              |
+    |------------------|--------------------------------------------------------------|
+    | [issue #26][#26] | Correct error message is raised when the number of produced<br> values is incorrect. | 
+
+[#26]: https://github.com/Bakuriu/feanor-csv/issues/26
+
+
 0.5.0 - 2018/09/21
 ==================
 

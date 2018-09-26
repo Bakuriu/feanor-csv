@@ -270,6 +270,12 @@ class Compiler:
                         inputs=[name], outputs=[col_name],
                         transformer=identity
                     )
+        elif len(out_names) < len(column_names):
+            raise TypeError(f'defined {len(column_names)} columns but only {len(out_names)} values produced.')
+        else:
+            undefined_columns = set(column_names) - set(out_names)
+            if undefined_columns:
+                raise TypeError(f'cannot determine value for columns: {to_string_list(sorted(undefined_columns))}')
 
         return self._schema
 
