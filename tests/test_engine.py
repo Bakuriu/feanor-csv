@@ -39,7 +39,7 @@ class TestEngine(unittest.TestCase):
         expected_values = {(self.rand_copy.randint(10, 1_000_000),) for _ in range(20)}
         self.assertEqual(expected_values, values)
 
-    def test_can_generate_arbitrary_data_with_number_of_rows(self):
+    def test_can_generate_producer_data_with_number_of_rows(self):
         schema = Schema()
         schema.define_column('A', type='int')
         schema.define_column('B', type='int')
@@ -64,21 +64,21 @@ class TestEngine(unittest.TestCase):
         iterable = (self.rand_copy.randint(0, 1_000_000) for _ in range(3000))
         self.assertEqual(list(zip(iterable, iterable, iterable)), generated_values)
 
-    def test_can_generate_two_identical_columns_by_referencing_same_arbitrary(self):
+    def test_can_generate_two_identical_columns_by_referencing_same_producer(self):
         schema = Schema()
-        schema.add_arbitrary('bob', type='int')
-        schema.define_column('A', arbitrary='bob')
-        schema.define_column('B', arbitrary='bob')
+        schema.add_producer('bob', type='int')
+        schema.define_column('A', producer='bob')
+        schema.define_column('B', producer='bob')
 
         engine = Engine(schema, self.library)
         generated_values = list(engine.generate_data(number_of_rows=10))
         first_col, second_col = zip(*generated_values)
         self.assertEqual(first_col, second_col)
 
-    def test_can_generate_two_identical_columns_by_referencing_name_of_auto_created_arbitrary(self):
+    def test_can_generate_two_identical_columns_by_referencing_name_of_auto_created_producer(self):
         schema = Schema()
         schema.define_column('A', type='int')
-        schema.define_column('B', arbitrary='A')
+        schema.define_column('B', producer='A')
 
         engine = Engine(schema, self.library)
         generated_values = list(engine.generate_data(number_of_rows=10))

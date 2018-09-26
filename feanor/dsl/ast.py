@@ -81,12 +81,12 @@ class Config(AstNode):
 
 
 class TypeNameNode(ExprNode):
-    def __init__(self, identifier: Identifier, arbitrary: Identifier, config: Config):
-        super().__init__(identifier, arbitrary, config)
+    def __init__(self, identifier: Identifier, producer: Identifier, config: Config):
+        super().__init__(identifier, producer, config)
 
     @classmethod
-    def of(cls, name: str, arbitrary: str = 'default', config=None):
-        return cls(Identifier.of(name), Identifier.of(arbitrary), Config.of(config))
+    def of(cls, name: str, producer: str = 'default', config=None):
+        return cls(Identifier.of(name), Identifier.of(producer), Config.of(config))
 
 
 class ReferenceNode(ExprNode):
@@ -180,4 +180,4 @@ class LetNode(ExprNode):
 
 
 class ParsingError(ValueError):
-    """Exception raised when the expression describing an arbitrary type is invalid."""
+    """Exception raised when the expression describing an producer type is invalid."""

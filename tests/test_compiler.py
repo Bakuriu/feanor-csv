@@ -17,7 +17,7 @@ class TestTypeInferencer(unittest.TestCase):
         got = self.inferencer.infer(TypeNameNode.of('int'))
         self.assertEqual(SimpleType('int'), got)
 
-    def test_can_infer_type_of_a_type_name_node_with_arbitrary(self):
+    def test_can_infer_type_of_a_type_name_node_with_producer(self):
         got = self.inferencer.infer(TypeNameNode.of('int', 'fixed'))
         self.assertEqual(SimpleType('int'), got)
 
@@ -26,7 +26,7 @@ class TestTypeInferencer(unittest.TestCase):
         self.inferencer.infer(tree)
         self.assertEqual({'type': SimpleType('int')}, tree.info)
 
-    def test_inferring_type_of_type_name_node_with_arbitrary_sets_info_value(self):
+    def test_inferring_type_of_type_name_node_with_producer_sets_info_value(self):
         tree = TypeNameNode.of('int', 'fixed')
         self.inferencer.infer(tree)
         self.assertEqual({'type': SimpleType('int')}, tree.info)
@@ -547,8 +547,8 @@ class TestCompiler(unittest.TestCase):
     def test_can_compile_a_type_name_node_with_no_config(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(TypeNameNode.of('int'))
         self.assertEqual(schema, got)
@@ -559,36 +559,36 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['arbitrary#0'],
-            'out_names': ['arbitrary#0'],
+            'in_names': ['producer#0'],
+            'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
-    def test_can_compile_a_type_name_node_with_arbitrary_no_config(self):
+    def test_can_compile_a_type_name_node_with_producer_no_config(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='fixed')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_producer('producer#0', type='fixed')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(TypeNameNode.of('int', 'fixed'))
         self.assertEqual(schema, got)
 
-    def test_compiling_a_type_name_node_with_arbitrary_no_config_sets_info_value(self):
+    def test_compiling_a_type_name_node_with_producer_no_config_sets_info_value(self):
         tree = TypeNameNode.of('int', 'fixed')
         self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['arbitrary#0'],
-            'out_names': ['arbitrary#0'],
+            'in_names': ['producer#0'],
+            'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_a_type_name_node_with_config(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int', config={'min': 10})
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_producer('producer#0', type='int', config={'min': 10})
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(TypeNameNode.of('int', config={'min': 10}))
         self.assertEqual(schema, got)
@@ -599,36 +599,36 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['arbitrary#0'],
-            'out_names': ['arbitrary#0'],
+            'in_names': ['producer#0'],
+            'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
-    def test_can_compile_a_type_name_node_with_arbitrary_config(self):
+    def test_can_compile_a_type_name_node_with_producer_config(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='fixed', config={'value': 10})
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_producer('producer#0', type='fixed', config={'value': 10})
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(TypeNameNode.of('int', 'fixed', config={'value': 10}))
         self.assertEqual(schema, got)
 
-    def test_compiling_a_type_name_node_with_arbitrary_config_sets_info_value(self):
+    def test_compiling_a_type_name_node_with_producer_config_sets_info_value(self):
         tree = TypeNameNode.of('int', 'fixed', config={'value': 10})
         self.compiler.compile(tree)
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['arbitrary#0'],
-            'out_names': ['arbitrary#0'],
+            'in_names': ['producer#0'],
+            'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_an_assignment_of_a_type_name(self):
         schema = Schema()
         schema.add_column('a')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(AssignNode.of(TypeNameNode.of('int'), 'a'))
         self.assertEqual(schema, got)
@@ -639,7 +639,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': 'a',
-            'in_names': ['arbitrary#0'],
+            'in_names': ['producer#0'],
             'out_names': ['a'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -648,11 +648,11 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('column#0')
         schema.add_column('column#1')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['column#1'],
+        schema.add_transformer('transformer#1', inputs=['producer#1'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')))
         self.assertEqual(schema, got)
@@ -662,17 +662,17 @@ class TestCompiler(unittest.TestCase):
         self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int'), SimpleType('int')]), 'assigned_name': None,
-            'in_names': ['arbitrary#0', 'arbitrary#1'],
-            'out_names': ['arbitrary#0', 'arbitrary#1'],
+            'in_names': ['producer#0', 'producer#1'],
+            'out_names': ['producer#0', 'producer#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_choice_of_two_type_names(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['transformer#0'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0', 'producer#1'], outputs=['transformer#0'],
                                transformer=ChoiceTransformer(2, 0.5, 0.5))
         schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
@@ -685,16 +685,16 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': ChoiceType([SimpleType('int'), SimpleType('int')]), 'assigned_name': None,
             'out_names': ['transformer#0'],
-            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'in_names': ['producer#0', 'producer#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_merge_of_two_type_names(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0', 'producer#1'],
                                outputs=['transformer#0#0'],
                                transformer=MergeTransformer(2))
         schema.add_transformer('transformer#1', inputs=['transformer#0#0'], outputs=['column#0'],
@@ -708,7 +708,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'in_names': ['producer#0', 'producer#1'],
             'out_names': ['transformer#0#0'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -717,10 +717,10 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('a')
         schema.add_column('column#1')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'],
+        schema.add_transformer('transformer#1', inputs=['producer#0'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(
             BinaryOpNode.of(
@@ -736,8 +736,8 @@ class TestCompiler(unittest.TestCase):
         self.compiler.compile(tree)
         expected_info = {
             'type': ParallelType([SimpleType('int'), SimpleType('int')]),
-            'in_names': ['a', 'arbitrary#0'],
-            'out_names': ['a', 'arbitrary#0'],
+            'in_names': ['a', 'producer#0'],
+            'out_names': ['a', 'producer#0'],
             'assigned_name': None,
         }
         self.assertEqual(expected_info, tree.info)
@@ -747,12 +747,12 @@ class TestCompiler(unittest.TestCase):
         schema.add_column('a')
         schema.add_column('column#1')
         schema.add_column('column#2')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#1'],
+        schema.add_transformer('transformer#1', inputs=['producer#0'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#2', inputs=['arbitrary#0'], outputs=['column#2'],
+        schema.add_transformer('transformer#2', inputs=['producer#0'], outputs=['column#2'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(
             BinaryOpNode.of(
@@ -780,8 +780,8 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': ParallelType([SimpleType('int'), SimpleType('int'), SimpleType('int')]),
             'assigned_name': None,
-            'in_names': ['a', 'arbitrary#0', 'arbitrary#0'],
-            'out_names': ['a', 'arbitrary#0', 'arbitrary#0'],
+            'in_names': ['a', 'producer#0', 'producer#0'],
+            'out_names': ['a', 'producer#0', 'producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -789,9 +789,9 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('a#0')
         schema.add_column('a#1')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['a#0', 'a#1'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#0', 'producer#1'], outputs=['a#0', 'a#1'],
                                transformer=IdentityTransformer(2))
         got = self.compiler.compile(
             AssignNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 'a'))
@@ -803,7 +803,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': ParallelType([SimpleType('int'), SimpleType('float')]),
             'assigned_name': 'a',
-            'in_names': ['arbitrary#0', 'arbitrary#1'],
+            'in_names': ['producer#0', 'producer#1'],
             'out_names': ['a#0', 'a#1'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -811,9 +811,9 @@ class TestCompiler(unittest.TestCase):
     def test_can_compile_projection_of_concatenation(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(
             ProjectionNode.of(BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float')), 0))
@@ -825,16 +825,16 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['arbitrary#0', 'arbitrary#1'],
-            'out_names': ['arbitrary#0'],
+            'in_names': ['producer#0', 'producer#1'],
+            'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_double_assignment(self):
         schema = Schema()
         schema.add_column('b')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['a'], outputs=['b'], transformer=IdentityTransformer(1))
         got = self.compiler.compile(AssignNode.of(AssignNode.of(TypeNameNode.of('int'), 'a'), 'b'))
@@ -854,8 +854,8 @@ class TestCompiler(unittest.TestCase):
     def test_can_compile_triple_assignment(self):
         schema = Schema()
         schema.add_column('c')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#1', inputs=['a'], outputs=['b'], transformer=IdentityTransformer(1))
         schema.add_transformer('transformer#2', inputs=['b'], outputs=['c'], transformer=IdentityTransformer(1))
@@ -877,11 +877,11 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('a')
         schema.add_column('column#1')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['column#1'],
+        schema.add_transformer('transformer#1', inputs=['producer#1'], outputs=['column#1'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(
             BinaryOpNode.of('.', AssignNode.of(TypeNameNode.of('int'), 'a'), TypeNameNode.of('float')))
@@ -893,8 +893,8 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': ParallelType([SimpleType('int'), SimpleType('float')]),
             'assigned_name': None,
-            'in_names': ['a', 'arbitrary#1'],
-            'out_names': ['a', 'arbitrary#1'],
+            'in_names': ['a', 'producer#1'],
+            'out_names': ['a', 'producer#1'],
         }
         self.assertEqual(expected_info, tree.info)
 
@@ -903,12 +903,12 @@ class TestCompiler(unittest.TestCase):
         schema.add_column('a#0')
         schema.add_column('a#1')
         schema.add_column('column#2')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='int')
-        schema.add_arbitrary('arbitrary#2', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0', 'arbitrary#1'], outputs=['a#0', 'a#1'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='int')
+        schema.add_producer('producer#2', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#0', 'producer#1'], outputs=['a#0', 'a#1'],
                                transformer=IdentityTransformer(2))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#2'], outputs=['column#2'],
+        schema.add_transformer('transformer#1', inputs=['producer#2'], outputs=['column#2'],
                                transformer=IdentityTransformer(1))
         got = self.compiler.compile(BinaryOpNode.of('.', AssignNode.of(
             BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('int')), 'a'), TypeNameNode.of('float')))
@@ -921,18 +921,18 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': ParallelType([SimpleType('int'), SimpleType('int'), SimpleType('float')]),
             'assigned_name': None,
-            'in_names': ['a#0', 'a#1', 'arbitrary#2'],
-            'out_names': ['a#0', 'a#1', 'arbitrary#2'],
+            'in_names': ['a#0', 'a#1', 'producer#2'],
+            'out_names': ['a#0', 'a#1', 'producer#2'],
         }
         self.assertEqual(expected_info, tree.info)
 
     def test_can_compile_simple_let_expression(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_transformer('transformer#1', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
 
         got = self.compiler.compile(LetNode.of([('a', TypeNameNode.of('int'))], ReferenceNode.of('a')))
@@ -941,10 +941,10 @@ class TestCompiler(unittest.TestCase):
     def test_can_compile_expression_with_type_config(self):
         schema = Schema()
         schema.add_column('column#0')
-        schema.add_arbitrary('arbitrary#0', type='int', config={'min': 10})
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['a'],
+        schema.add_producer('producer#0', type='int', config={'min': 10})
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0'], outputs=['column#0'],
+        schema.add_transformer('transformer#1', inputs=['producer#0'], outputs=['column#0'],
                                transformer=IdentityTransformer(1))
 
         got = self.compiler.compile(
@@ -955,11 +955,11 @@ class TestCompiler(unittest.TestCase):
         schema = Schema()
         schema.add_column('INTERO')
         schema.add_column('FLOAT')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#0'], outputs=['INTERO'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['INTERO'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#1'], outputs=['FLOAT'],
+        schema.add_transformer('transformer#1', inputs=['producer#1'], outputs=['FLOAT'],
                                transformer=IdentityTransformer(1))
 
         expr = BinaryOpNode.of('.', TypeNameNode.of('int'), TypeNameNode.of('float'))
@@ -969,9 +969,9 @@ class TestCompiler(unittest.TestCase):
     def test_when_providing_less_than_the_number_of_columns_values_are_selected(self):
         schema = Schema()
         schema.add_column('a')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#1'], outputs=['a'],
                                transformer=IdentityTransformer(1))
 
         expr = BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a'))
@@ -981,12 +981,12 @@ class TestCompiler(unittest.TestCase):
     def test_example_with_merge(self):
         schema = Schema()
         schema.add_column('transformer#1#0')
-        schema.add_arbitrary('arbitrary#0', type='int')
-        schema.add_arbitrary('arbitrary#1', type='int')
-        schema.add_arbitrary('arbitrary#2', type='float')
-        schema.add_transformer('transformer#0', inputs=['arbitrary#1'], outputs=['a'],
+        schema.add_producer('producer#0', type='int')
+        schema.add_producer('producer#1', type='int')
+        schema.add_producer('producer#2', type='float')
+        schema.add_transformer('transformer#0', inputs=['producer#1'], outputs=['a'],
                                transformer=IdentityTransformer(1))
-        schema.add_transformer('transformer#1', inputs=['arbitrary#0', 'a'], outputs=['transformer#1#0'],
+        schema.add_transformer('transformer#1', inputs=['producer#0', 'a'], outputs=['transformer#1#0'],
                                transformer=MergeTransformer(2))
 
         expr = BinaryOpNode.of('.',

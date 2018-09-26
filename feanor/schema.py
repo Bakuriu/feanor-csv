@@ -16,16 +16,16 @@ class Schema:
     def __init__(self, *, show_header=True):
         self._show_header = show_header
         self._columns = []
-        self._arbitraries = {}
+        self._producers = {}
         self._transformers = []
 
     def __eq__(self, other):
         return isinstance(other, Schema) and self.__dict__ == other.__dict__
 
     def __str__(self):
-        return 'Schema(\n\tcolumns={},\n\tarbitraries={{{}}},\n\ttransformers={}\n\tshow_header={}\n)'.format(
+        return 'Schema(\n\tcolumns={},\n\tproducers={{{}}},\n\ttransformers={}\n\tshow_header={}\n)'.format(
             self._columns,
-            ', '.join(': '.join([name, str(arb)]) for name, arb in self._arbitraries.items()),
+            ', '.join(': '.join([name, str(arb)]) for name, arb in self._producers.items()),
             ', '.join(map(str, self._transformers)),
             self._show_header,
         )
@@ -37,12 +37,12 @@ class Schema:
         return tuple(self._columns)
 
     @property
-    def arbitraries(self):
-        """The arbitraries used in the schema.
+    def producers(self):
+        """The producers used in the schema.
 
         Note: the order of the returned list is undefined.
         """
-        return tuple(SimpleNamespace(name=name, **values) for name, values in self._arbitraries.items())
+        return tuple(SimpleNamespace(name=name, **values) for name, values in self._producers.items())
 
     @property
     def transformers(self):
@@ -65,33 +65,33 @@ class Schema:
             raise SchemaError('Column {!r} is already defined.'.format(name))
         self._columns.append(name)
 
-    def define_column(self, name, *, arbitrary=None, type=None, config=None):
+    def define_column(self, name, *, producer=None, type=None, config=None):
         if name in self._columns:
             raise SchemaError('Column {!r} is already defined.'.format(name))
 
-        if arbitrary is not None is not type:
-            raise TypeError('Cannot specify both arbitrary and type.')
-        if arbitrary is not None is not config:
-            raise TypeError('Cannot specify both arbitrary and config.')
+        if producer is not None is not type:
+            raise TypeError('Cannot specify both producer and type.')
+        if producer is not None is not config:
+            raise TypeError('Cannot specify both producer and config.')
 
-        if arbitrary is not None:
-            if arbitrary not in self._arbitraries:
-                raise SchemaError('Arbitrary {!r} does not exist.'.format(arbitrary))
-            self.add_transformer(name, transformer=ProjectionTransformer(1, 0), inputs=[arbitrary], outputs=[arbitrary])
+        if producer is not None:
+            if producer not in self._producers:
+                raise SchemaError('Producer {!r} does not exist.'.format(producer))
+            self.add_transformer(name, transformer=ProjectionTransformer(1, 0), inputs=[producer], outputs=[producer])
             # FIXME: this is a hack to avoid adding&removing a column if an error occurs durign the above call...
             self._transformers[-1]['outputs'] = [name]
         elif type is not None:
-            self.add_arbitrary(name, type=type, config=config)
+            self.add_producer(name, type=type, config=config)
         else:
-            raise TypeError('You must specify either the type of the column or an associated arbitrary.')
+            raise TypeError('You must specify either the type of the column or an associated producer.')
 
         self._columns.append(name)
 
-    def add_arbitrary(self, name, *, type, config=None):
-        """Register an arbitrary to the schema."""
-        if name in self._arbitraries:
-            raise SchemaError('Arbitrary {!r} is already defined.'.format(name))
-        self._arbitraries[name] = {'type': type, 'config': config or {}}
+    def add_producer(self, name, *, type, config=None):
+        """Register an producer to the schema."""
+        if name in self._producers:
+            raise SchemaError('Producer {!r} is already defined.'.format(name))
+        self._producers[name] = {'type': type, 'config': config or {}}
 
     def add_transformer(self, name, *, transformer, inputs, outputs):
         """Register a transformer to the schema."""
@@ -104,7 +104,7 @@ class Schema:
             msg = 'Got {} outputs: {} but transformer\'s number of outputs is {.num_outputs}.'
             raise SchemaError(msg.format(len(outputs), to_string_list(outputs), transformer))
         defined_names = (
-                self._arbitraries.keys()
+                self._producers.keys()
                 | set(self._columns)
                 | set(chain.from_iterable(trans['outputs'] for trans in self._transformers))
         )

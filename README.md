@@ -22,7 +22,7 @@ optional arguments:
   -L LIBRARY, --library LIBRARY
                         The library to use.
   -C GLOBAL_CONFIGURATION, --global-configuration GLOBAL_CONFIGURATION
-                        The global configuration for arbitraries.
+                        The global configuration for producers.
   -r RANDOM_MODULE, --random-module RANDOM_MODULE
                         The random module to be used to generate random data.
   -s RANDOM_SEED, --random-seed RANDOM_SEED
@@ -43,16 +43,16 @@ $ feanor --version
 feanor 0.5.0
 ```
 
-## Arbitrary types
+## Producer types
 
-Each arbitrary is assigned an "arbitrary type", which describes how to generate the values.
-The syntax of the arbitrary type is the following:
+Each producer is assigned an "producer type", which describes how to generate the values.
+The syntax of the producer type is the following:
 
-    # <ARBITRARY_NAME> [ CONFIG ]
+    # <PRODUCER_NAME> [ CONFIG ]
 
-Where `ARBITRARY_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
+Where `PRODUCER_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
 
-For example the built-in `int` arbitrary type can be used in the following ways:
+For example the built-in `int` producer type can be used in the following ways:
 
  - `%int` or `%int{}`: default configuration
  - `%int{"min": 10}`: do not generate numbers smaller than `10` (inclusive).
@@ -62,12 +62,12 @@ For example the built-in `int` arbitrary type can be used in the following ways:
 
 ## Feanor DSL Expressions
 
-Values are defined by a simple DSL that allows you to combine multiple arbitraries in different ways and they
+Values are defined by a simple DSL that allows you to combine multiple producers in different ways and they
 allow to express complex logic for your data generation.
 
-### Arbitrary definitions
+### Producer definitions
 
-An arbitrary definition is simply its type and follows the syntax `#<NAME>[CONFIG]` as explained before.
+An producer definition is simply its type and follows the syntax `#<NAME>[CONFIG]` as explained before.
 
 
 ### Assignments

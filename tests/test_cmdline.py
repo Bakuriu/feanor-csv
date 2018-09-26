@@ -21,7 +21,7 @@ class TestCommandLine(unittest.TestCase):
         mock_sys_exit.assert_called_with(2)
 
     @patch('sys.exit')
-    def test_cannot_create_schema_with_one_column_but_no_arbitrary(self, mock_sys_exit):
+    def test_cannot_create_schema_with_one_column_but_no_producer(self, mock_sys_exit):
         try:
             parse_arguments(['-n', '10', 'cmdline', '-c', 'A'])
         except TypeError:
@@ -53,8 +53,8 @@ class TestCommandLine(unittest.TestCase):
         schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '%int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A',), schema.columns)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
-        expected_transformer = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), schema.producers[0])
+        expected_transformer = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer, schema.transformers[0])
 
@@ -63,12 +63,12 @@ class TestCommandLine(unittest.TestCase):
         schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '%int', '-c', 'B', '%int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), arbitraries[0])
-        self.assertEqual(SimpleNamespace(name='arbitrary#1', type='int', config={}), arbitraries[1])
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), producers[0])
+        self.assertEqual(SimpleNamespace(name='producer#1', type='int', config={}), producers[1])
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#1'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['producer#1'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer_A, schema.transformers[0])
         self.assertEqual(expected_transformer_B, schema.transformers[1])
@@ -78,16 +78,16 @@ class TestCommandLine(unittest.TestCase):
         schema,  _, _, size_dict = parse_arguments(['-n', '5', 'cmdline', '-c', 'A', '%int', '-c', 'B', '@A'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
-        self.assertEqual(1, len(schema.arbitraries))
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
+        self.assertEqual(1, len(schema.producers))
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), schema.producers[0])
         self.assertEqual(4, len(schema.transformers))
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#0'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['producer#0'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_A_copy = SimpleNamespace(name='transformer#2', inputs=['arbitrary#0'], outputs=['A'],
+        expected_transformer_A_copy = SimpleNamespace(name='transformer#2', inputs=['producer#0'], outputs=['A'],
                                                       transformer=IdentityTransformer(1))
-        expected_transformer_B_copy = SimpleNamespace(name='transformer#3', inputs=['arbitrary#0'], outputs=['B'],
+        expected_transformer_B_copy = SimpleNamespace(name='transformer#3', inputs=['producer#0'], outputs=['B'],
                                                       transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer_A, schema.transformers[0])
         self.assertEqual(expected_transformer_B, schema.transformers[1])
@@ -100,15 +100,15 @@ class TestCommandLine(unittest.TestCase):
             ['-n', '5', 'cmdline', '-c', 'A', '%int', '-c', 'B', '%int', '-c', 'C', '@A+@B'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B', 'C'), schema.columns)
-        self.assertEqual(2, len(schema.arbitraries))
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), arbitraries[0])
-        self.assertEqual(SimpleNamespace(name='arbitrary#1', type='int', config={}), arbitraries[1])
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        self.assertEqual(2, len(schema.producers))
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), producers[0])
+        self.assertEqual(SimpleNamespace(name='producer#1', type='int', config={}), producers[1])
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#1'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['producer#1'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_merge = SimpleNamespace(name='transformer#2', inputs=['arbitrary#0', 'arbitrary#1'],
+        expected_transformer_merge = SimpleNamespace(name='transformer#2', inputs=['producer#0', 'producer#1'],
                                                      outputs=['transformer#2#0'],
                                                      transformer=MergeTransformer(2))
         expected_transformer_C = SimpleNamespace(name='transformer#3', inputs=['transformer#2#0'], outputs=['C'],
@@ -124,15 +124,15 @@ class TestCommandLine(unittest.TestCase):
             ['-n', '5', 'options', '-c', 'A', '%int', '-c', 'B', '%int', '-c', 'C', '@A+@B'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B', 'C'), schema.columns)
-        self.assertEqual(2, len(schema.arbitraries))
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), arbitraries[0])
-        self.assertEqual(SimpleNamespace(name='arbitrary#1', type='int', config={}), arbitraries[1])
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        self.assertEqual(2, len(schema.producers))
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), producers[0])
+        self.assertEqual(SimpleNamespace(name='producer#1', type='int', config={}), producers[1])
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#1'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['producer#1'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_merge = SimpleNamespace(name='transformer#2', inputs=['arbitrary#0', 'arbitrary#1'],
+        expected_transformer_merge = SimpleNamespace(name='transformer#2', inputs=['producer#0', 'producer#1'],
                                                      outputs=['transformer#2#0'],
                                                      transformer=MergeTransformer(2))
         expected_transformer_C = SimpleNamespace(name='transformer#3', inputs=['transformer#2#0'], outputs=['C'],
@@ -147,8 +147,8 @@ class TestCommandLine(unittest.TestCase):
         schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '%int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A',), schema.columns)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
-        expected_transformer = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), schema.producers[0])
+        expected_transformer = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer, schema.transformers[0])
 
@@ -157,12 +157,12 @@ class TestCommandLine(unittest.TestCase):
         schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B', '%int . %int'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), arbitraries[0])
-        self.assertEqual(SimpleNamespace(name='arbitrary#1', type='int', config={}), arbitraries[1])
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), producers[0])
+        self.assertEqual(SimpleNamespace(name='producer#1', type='int', config={}), producers[1])
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#1'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['producer#1'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer_A, schema.transformers[0])
         self.assertEqual(expected_transformer_B, schema.transformers[1])
@@ -172,14 +172,14 @@ class TestCommandLine(unittest.TestCase):
         schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A,B', 'let A := %int in @A . @A'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B'), schema.columns)
-        self.assertEqual(1, len(schema.arbitraries))
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), schema.arbitraries[0])
+        self.assertEqual(1, len(schema.producers))
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), schema.producers[0])
         self.assertEqual(3, len(schema.transformers))
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_A_copy = SimpleNamespace(name='transformer#1', inputs=['arbitrary#0'], outputs=['A'],
+        expected_transformer_A_copy = SimpleNamespace(name='transformer#1', inputs=['producer#0'], outputs=['A'],
                                                       transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#2', inputs=['arbitrary#0'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#2', inputs=['producer#0'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer_A, schema.transformers[0])
         self.assertEqual(expected_transformer_A_copy, schema.transformers[1])
@@ -190,10 +190,10 @@ class TestCommandLine(unittest.TestCase):
         schema, _, _, size_dict = parse_arguments(['-n', '5', 'expr', '--columns', 'A', '%int{"min": 10}'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A',), schema.columns)
-        self.assertEqual(1, len(schema.arbitraries))
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={'min': 10}), schema.arbitraries[0])
+        self.assertEqual(1, len(schema.producers))
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={'min': 10}), schema.producers[0])
         self.assertEqual(1, len(schema.transformers))
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
         self.assertEqual(expected_transformer_A, schema.transformers[0])
 
@@ -203,15 +203,15 @@ class TestCommandLine(unittest.TestCase):
             ['-n', '5', 'expr', '--columns', 'A,B,C', '(%int)=A . (%int)=B . (@A+@B)'])
         self.assertEqual({'number_of_rows': 5}, size_dict)
         self.assertEqual(('A', 'B', 'C'), schema.columns)
-        self.assertEqual(2, len(schema.arbitraries))
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(SimpleNamespace(name='arbitrary#0', type='int', config={}), arbitraries[0])
-        self.assertEqual(SimpleNamespace(name='arbitrary#1', type='int', config={}), arbitraries[1])
-        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['arbitrary#0'], outputs=['A'],
+        self.assertEqual(2, len(schema.producers))
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual(SimpleNamespace(name='producer#0', type='int', config={}), producers[0])
+        self.assertEqual(SimpleNamespace(name='producer#1', type='int', config={}), producers[1])
+        expected_transformer_A = SimpleNamespace(name='transformer#0', inputs=['producer#0'], outputs=['A'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['arbitrary#1'], outputs=['B'],
+        expected_transformer_B = SimpleNamespace(name='transformer#1', inputs=['producer#1'], outputs=['B'],
                                                  transformer=IdentityTransformer(1))
-        expected_transformer_merge = SimpleNamespace(name='transformer#2', inputs=['arbitrary#0', 'arbitrary#1'],
+        expected_transformer_merge = SimpleNamespace(name='transformer#2', inputs=['producer#0', 'producer#1'],
                                                      outputs=['transformer#2#0'],
                                                      transformer=MergeTransformer(2))
         expected_transformer_C = SimpleNamespace(name='transformer#3', inputs=['transformer#2#0'], outputs=['C'],

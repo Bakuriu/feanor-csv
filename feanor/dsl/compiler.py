@@ -225,7 +225,7 @@ class Compiler:
         self.env = library.env()
         self._inferencer = TypeInferencer(self.compatibility, self.env.get('::types::'), self.func_env.get('::types::'))
         self._schema = Schema(show_header=show_header)
-        self._cur_arbitrary_id = 0
+        self._cur_producer_id = 0
         self._cur_transformer_id = 0
         self._compiled_expressions = []
 
@@ -240,7 +240,7 @@ class Compiler:
         if column_names is None:
             column_names = []
             for i, name in enumerate(out_names):
-                if name.startswith('arbitrary#') or name.startswith('transformer#'):
+                if name.startswith('producer#') or name.startswith('transformer#'):
                     column_names.append('column#{}'.format(i))
                 else:
                     column_names.append(name)
@@ -278,9 +278,9 @@ class Compiler:
     @visitor.register(TypeNameNode)
     def _(self, cur_node: TypeNameNode, *children_values):
         # TODO: we should be able to check if the configuration is valid here instead of afterwards.
-        type_name, arbitrary, config = children_values
-        name = self._new_arbitrary_name()
-        self._schema.add_arbitrary(name, type=arbitrary if arbitrary != 'default' else type_name, config=config)
+        type_name, producer, config = children_values
+        name = self._new_producer_name()
+        self._schema.add_producer(name, type=producer if producer != 'default' else type_name, config=config)
         cur_node.info['assigned_name'] = None
         cur_node.info['in_names'] = [name]
         cur_node.info['out_names'] = [name]
@@ -368,7 +368,7 @@ class Compiler:
         self._cur_transformer_id += 1
         return name
 
-    def _new_arbitrary_name(self) -> str:
-        name = 'arbitrary#{}'.format(self._cur_arbitrary_id)
-        self._cur_arbitrary_id += 1
+    def _new_producer_name(self) -> str:
+        name = 'producer#{}'.format(self._cur_producer_id)
+        self._cur_producer_id += 1
         return name

@@ -9,8 +9,8 @@ class Library(metaclass=ABCMeta):
         self.global_configuration = global_configuration
         self.random_funcs = random_funcs
 
-    def make_arbitrary(self, name, config):
-        factory = self.get_arbitrary_factory(name)
+    def make_producer(self, name, config):
+        factory = self.get_producer_factory(name)
         the_config = self.global_configuration.get(name, {})
         the_config.update(config)
         return factory(self.random_funcs, the_config)
@@ -28,7 +28,7 @@ class Library(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_arbitrary_factory(self, name):
+    def get_producer_factory(self, name):
         raise NotImplementedError
 
 
@@ -45,5 +45,5 @@ class EmptyLibrary(Library):
     def func_env(cls):
         return {}
 
-    def get_arbitrary_factory(self, name):
+    def get_producer_factory(self, name):
         return lambda random_funcs, config=None: None

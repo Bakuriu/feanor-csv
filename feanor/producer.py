@@ -6,7 +6,7 @@ from typing import Set
 from .util import to_string_list
 
 
-class Arbitrary(metaclass=ABCMeta):
+class Producer(metaclass=ABCMeta):
     def __init__(self, random_funcs, type_name, config):
         self._random_funcs = random_funcs
         self._type_name = type_name

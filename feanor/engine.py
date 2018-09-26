@@ -5,9 +5,9 @@ class Engine:
         self._generator = self._schema_to_generator(schema)
 
     def _schema_to_generator(self, schema):
-        arbitraries = {arbitrary.name: self._library.make_arbitrary(arbitrary.type, arbitrary.config) for arbitrary in
-                       schema.arbitraries}
-        return DataGenerator(schema.columns, arbitraries, schema.transformers)
+        producers = {producer.name: self._library.make_producer(producer.type, producer.config) for producer in
+                       schema.producers}
+        return DataGenerator(schema.columns, producers, schema.transformers)
 
     @property
     def number_of_columns(self):
@@ -20,13 +20,13 @@ class Engine:
 
 
 class DataGenerator:
-    def __init__(self, columns, arbitraries, transformers):
+    def __init__(self, columns, producers, transformers):
         self._transformers = tuple(transformers)
-        self._arbitraries = arbitraries
+        self._producers = producers
         self._columns = tuple(columns)
 
     def __call__(self):
-        env = {name: arbitrary() for name, arbitrary in self._arbitraries.items()}
+        env = {name: producer() for name, producer in self._producers.items()}
         for transformer in self._transformers:
             output_values = transformer.transformer([env[input_name] for input_name in transformer.inputs])
             for name, value in zip(transformer.outputs, output_values):

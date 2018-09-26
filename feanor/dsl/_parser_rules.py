@@ -99,12 +99,12 @@ def p_factor(p):
 
 
 def p_type(p):
-    """type : '%' IDENTIFIER opt_arbitrary config"""
+    """type : '%' IDENTIFIER opt_producer config"""
     p[0] = TypeNameNode.of(p[2], p[3], p[4])
 
 
-def p_opt_arbitrary(p):
-    """opt_arbitrary : ':' IDENTIFIER
+def p_opt_producer(p):
+    """opt_producer : ':' IDENTIFIER
                      | empty
     """
     p[0] = p[2] if len(p) == 3 else 'default'

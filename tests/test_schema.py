@@ -40,9 +40,9 @@ class TestSchema(unittest.TestCase):
         schema = Schema()
         schema.define_column('A', type='int')
         self.assertEqual(('A',), schema.columns)
-        self.assertEqual('A', schema.arbitraries[0].name)
-        self.assertEqual('int', schema.arbitraries[0].type)
-        self.assertEqual({}, schema.arbitraries[0].config)
+        self.assertEqual('A', schema.producers[0].name)
+        self.assertEqual('int', schema.producers[0].type)
+        self.assertEqual({}, schema.producers[0].config)
 
     def test_can_specify_header_visibility(self):
         schema = Schema(show_header=False)
@@ -52,80 +52,80 @@ class TestSchema(unittest.TestCase):
         schema = Schema()
         schema.define_column('A', type='int', config={'a': 10})
         self.assertEqual(('A',), schema.columns)
-        self.assertEqual('A', schema.arbitraries[0].name)
-        self.assertEqual('int', schema.arbitraries[0].type)
-        self.assertEqual({'a': 10}, schema.arbitraries[0].config)
+        self.assertEqual('A', schema.producers[0].name)
+        self.assertEqual('int', schema.producers[0].type)
+        self.assertEqual({'a': 10}, schema.producers[0].config)
 
-    def test_creates_different_arbitraries_when_multiple_columns(self):
+    def test_creates_different_producers_when_multiple_columns(self):
         schema = Schema()
         schema.define_column('A', type='int')
         schema.define_column('B', type='int')
         schema.define_column('C', type='int')
         self.assertEqual(('A', 'B', 'C'), schema.columns)
-        self.assertEqual(3, len(schema.arbitraries))
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual('A', arbitraries[0].name)
-        self.assertEqual('int', arbitraries[0].type)
-        self.assertEqual({}, arbitraries[0].config)
-        self.assertEqual('B', arbitraries[1].name)
-        self.assertEqual('int', arbitraries[1].type)
-        self.assertEqual({}, arbitraries[1].config)
-        self.assertEqual('C', arbitraries[2].name)
-        self.assertEqual('int', arbitraries[2].type)
-        self.assertEqual({}, arbitraries[2].config)
+        self.assertEqual(3, len(schema.producers))
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual('A', producers[0].name)
+        self.assertEqual('int', producers[0].type)
+        self.assertEqual({}, producers[0].config)
+        self.assertEqual('B', producers[1].name)
+        self.assertEqual('int', producers[1].type)
+        self.assertEqual({}, producers[1].config)
+        self.assertEqual('C', producers[2].name)
+        self.assertEqual('int', producers[2].type)
+        self.assertEqual({}, producers[2].config)
 
-    def test_can_create_column_by_referencing_arbitrary(self):
+    def test_can_create_column_by_referencing_producer(self):
         schema = Schema()
-        schema.add_arbitrary('my_arbitrary', type='int')
-        schema.define_column('A', arbitrary='my_arbitrary')
+        schema.add_producer('my_producer', type='int')
+        schema.define_column('A', producer='my_producer')
         self.assertEqual(('A',), schema.columns)
-        self.assertEqual(1, len(schema.arbitraries))
-        self.assertEqual('my_arbitrary', schema.arbitraries[0].name)
-        self.assertEqual('int', schema.arbitraries[0].type)
-        self.assertEqual({}, schema.arbitraries[0].config)
+        self.assertEqual(1, len(schema.producers))
+        self.assertEqual('my_producer', schema.producers[0].name)
+        self.assertEqual('int', schema.producers[0].type)
+        self.assertEqual({}, schema.producers[0].config)
         self.assertEqual(1, len(schema.transformers))
         self.assertEqual('A', schema.transformers[0].name)
-        self.assertEqual(['my_arbitrary'], schema.transformers[0].inputs)
+        self.assertEqual(['my_producer'], schema.transformers[0].inputs)
         self.assertEqual(['A'], schema.transformers[0].outputs)
         self.assertEqual(ProjectionTransformer(1, 0), schema.transformers[0].transformer)
 
-    def test_can_create_columns_with_same_arbitrary(self):
+    def test_can_create_columns_with_same_producer(self):
         schema = Schema()
-        schema.add_arbitrary('my_arbitrary', type='int')
-        schema.define_column('A', arbitrary='my_arbitrary')
-        schema.define_column('B', arbitrary='my_arbitrary')
+        schema.add_producer('my_producer', type='int')
+        schema.define_column('A', producer='my_producer')
+        schema.define_column('B', producer='my_producer')
         self.assertEqual(('A', 'B'), schema.columns)
-        self.assertEqual(1, len(schema.arbitraries))
-        self.assertEqual('my_arbitrary', schema.arbitraries[0].name)
-        self.assertEqual('int', schema.arbitraries[0].type)
-        self.assertEqual({}, schema.arbitraries[0].config)
+        self.assertEqual(1, len(schema.producers))
+        self.assertEqual('my_producer', schema.producers[0].name)
+        self.assertEqual('int', schema.producers[0].type)
+        self.assertEqual({}, schema.producers[0].config)
 
     def test_str(self):
         schema = Schema()
-        schema.add_arbitrary('my_arbitrary', type='int')
-        schema.define_column('A', arbitrary='my_arbitrary')
-        schema.define_column('B', arbitrary='my_arbitrary')
+        schema.add_producer('my_producer', type='int')
+        schema.define_column('A', producer='my_producer')
+        schema.define_column('B', producer='my_producer')
         str_regex = re.compile(r'''
             Schema\(
             \s*columns=\[[^]]+\],
-            \s*arbitraries=\{my_arbitrary:\s*\{'type':\s'int',\s'config':\s\{\}\}\},
+            \s*producers=\{my_producer:\s*\{'type':\s'int',\s'config':\s\{\}\}\},
             \s*transformers=(\{'name':\s'(A|B)',\s*'transformer':\s<feanor\.schema\.ProjectionTransformer\sobject\sat\s\w+>,\s*'inputs':\s\[[^]]+\],\s'outputs':\s\[[^]]+\]\},?\s*)+
             show_header=True\s*
             \)
         ''', re.VERBOSE)
         self.assertRegex(str(schema), str_regex)
 
-    def test_cannot_specify_both_arbitrary_and_type(self):
+    def test_cannot_specify_both_producer_and_type(self):
         schema = Schema()
         with self.assertRaises(TypeError):
-            schema.define_column('A', arbitrary='my_arbitrary', type='int')
+            schema.define_column('A', producer='my_producer', type='int')
 
-    def test_cannot_specify_both_arbitrary_and_config(self):
+    def test_cannot_specify_both_producer_and_config(self):
         schema = Schema()
         with self.assertRaises(TypeError):
-            schema.define_column('A', arbitrary='my_arbitrary', config={'a': 1})
+            schema.define_column('A', producer='my_producer', config={'a': 1})
 
-    def test_must_specify_arbitrary_or_type(self):
+    def test_must_specify_producer_or_type(self):
         schema = Schema()
         with self.assertRaises(TypeError):
             schema.define_column('A')
@@ -135,18 +135,18 @@ class TestSchema(unittest.TestCase):
 
     def test_raises_error_if_register_same_column_multiple_times(self):
         schema = Schema()
-        schema.add_arbitrary('my_arbitrary', type='int')
+        schema.add_producer('my_producer', type='int')
         with self.assertRaises(SchemaError) as ctx:
-            schema.add_arbitrary('my_arbitrary', type='int')
+            schema.add_producer('my_producer', type='int')
 
-        self.assertEqual("Arbitrary 'my_arbitrary' is already defined.", str(ctx.exception))
+        self.assertEqual("Producer 'my_producer' is already defined.", str(ctx.exception))
 
-    def test_raises_error_if_specified_arbitrary_is_not_defined(self):
+    def test_raises_error_if_specified_producer_is_not_defined(self):
         schema = Schema()
         with self.assertRaises(SchemaError):
-            schema.define_column('A', arbitrary='non-existent')
+            schema.define_column('A', producer='non-existent')
 
-    def test_raises_error_if_register_same_arbitrary_multiple_times(self):
+    def test_raises_error_if_register_same_producer_multiple_times(self):
         schema = Schema()
         schema.define_column('A', type='int')
         with self.assertRaises(SchemaError) as ctx:
@@ -154,15 +154,15 @@ class TestSchema(unittest.TestCase):
 
         self.assertEqual("Column 'A' is already defined.", str(ctx.exception))
 
-    def test_can_mix_reference_and_auto_generated_arbitraries(self):
+    def test_can_mix_reference_and_auto_generated_producers(self):
         schema = Schema()
-        schema.add_arbitrary('my_arbitrary', type='int')
-        schema.define_column('A', arbitrary='my_arbitrary')
+        schema.add_producer('my_producer', type='int')
+        schema.define_column('A', producer='my_producer')
         schema.define_column('B', type='int')
-        arbitraries = sorted(schema.arbitraries, key=lambda x: x.name)
-        self.assertEqual(2, len(arbitraries))
-        self.assertEqual(SimpleNamespace(name='B', type='int', config={}), arbitraries[0])
-        self.assertEqual(SimpleNamespace(name='my_arbitrary', type='int', config={}), arbitraries[1])
+        producers = sorted(schema.producers, key=lambda x: x.name)
+        self.assertEqual(2, len(producers))
+        self.assertEqual(SimpleNamespace(name='B', type='int', config={}), producers[0])
+        self.assertEqual(SimpleNamespace(name='my_producer', type='int', config={}), producers[1])
 
     def test_can_add_a_transformer(self):
         schema = Schema()

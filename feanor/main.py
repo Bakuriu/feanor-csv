@@ -58,7 +58,7 @@ def get_parser():
                         dest='show_header')
     parser.add_argument('-L', '--library', default='feanor.builtin', help='The library to use.')
     parser.add_argument('-C', '--global-configuration', default={}, type=_parse_global_configuration,
-                        help='The global configuration for arbitraries.')
+                        help='The global configuration for producers.')
     parser.add_argument('-r', '--random-module', default='random', type=load_python_module,
                         help='The random module to be used to generate random data.')
     parser.add_argument('-s', '--random-seed', type=ast.literal_eval, help='The random seed to use for this run.')

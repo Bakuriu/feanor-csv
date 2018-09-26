@@ -16,6 +16,6 @@ class TestEmptyLibrary(TestCase):
     def test_func_env(self):
         self.assertEqual({}, EmptyLibrary().func_env())
 
-    def test_get_arbitrary_factory(self):
-        factory = EmptyLibrary().get_arbitrary_factory('any_name')
+    def test_get_producer_factory(self):
+        factory = EmptyLibrary().get_producer_factory('any_name')
         self.assertEqual(None, factory(random))

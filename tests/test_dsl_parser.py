@@ -19,7 +19,7 @@ class TestParser(ParsingTestCase):
         got = self.parser.parse('%int{}')
         self.assertEqual(TypeNameNode.of('int'), got)
 
-    def test_can_parse_type_with_arbitrary(self):
+    def test_can_parse_type_with_producer(self):
         got = self.parser.parse('%int:fixed')
         self.assertEqual(TypeNameNode.of('int', 'fixed'), got)
 
@@ -27,7 +27,7 @@ class TestParser(ParsingTestCase):
         got = self.parser.parse('%int{"min":10,"max":15}')
         self.assertEqual(TypeNameNode.of('int', config={'min': 10, 'max': 15}), got)
 
-    def test_can_parse_type_with_arbitrary_and_config(self):
+    def test_can_parse_type_with_producer_and_config(self):
         got = self.parser.parse('%int:cycle{"values": [1,2,3]}')
         self.assertEqual(TypeNameNode.of('int', 'cycle', config={'values': [1,2,3]}), got)
 
