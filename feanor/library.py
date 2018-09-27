@@ -30,15 +30,15 @@ class Library(metaclass=ABCMeta):
         return factory(self.random_funcs, the_config)
 
     @abstractmethod
-    def compatibility(cls):
+    def compatibility(self):
         raise NotImplementedError
 
     @abstractmethod
-    def env(cls):
+    def env(self):
         raise NotImplementedError
 
     @abstractmethod
-    def func_env(cls):
+    def func_env(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -46,18 +46,30 @@ class Library(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class EmptyLibrary(Library):
+class MockLibrary(Library):
     def __init__(self):
         super().__init__({}, random)
+        self._env = {}
+        self._func_env = {}
 
-    def compatibility(cls):
+    def compatibility(self):
         return SimpleCompatibility(lambda x, y: x)
 
-    def env(cls):
-        return {}
+    def env(self):
+        return self._env
 
-    def func_env(cls):
-        return {}
+    def func_env(self):
+        return self._func_env
 
     def get_producer_factory(self, name):
         return lambda random_funcs, config=None: None
+
+    def register_function(self, name, func, arg_types, ret_type):
+        self._func_env[name] = func
+        func_env_types = self._func_env.setdefault('::types::', {})
+        func_env_types[name] = (arg_types, ret_type)
+
+    def register_variable(self, name, value, type):
+        self._env[name] = value
+        env_types = self._env.setdefault('::types::', {})
+        env_types[name] = type

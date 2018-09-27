@@ -28,6 +28,8 @@ class Compatibility(metaclass=ABCMeta):
         raise NotImplementedError
 
     def is_compatible(self, first_type: Type, second_type: Type) -> bool:
+        if isinstance(first_type, AnyType) or isinstance(second_type, AnyType):
+            return True
         try:
             _ = self.get_upperbound(first_type, second_type)
         except TypeError:
@@ -37,6 +39,8 @@ class Compatibility(metaclass=ABCMeta):
 
     def is_assignable_to(self, first_type: Type, target_type: Type) -> bool:
         if first_type == target_type:
+            return True
+        elif isinstance(target_type, AnyType):
             return True
 
         try:
@@ -52,6 +56,9 @@ class SimpleCompatibility(Compatibility):
         self._get_simple_type_upperbound = upperbound
 
     def get_upperbound(self, first_type: Type, second_type: Type) -> Type:
+        if isinstance(first_type, AnyType) or isinstance(second_type, AnyType):
+            return AnyType()
+
         first_simple = isinstance(first_type, SimpleType)
         second_simple = isinstance(second_type, SimpleType)
 
@@ -384,6 +391,18 @@ class Compiler:
         cur_node.info['assigned_name'] = None
         cur_node.info['out_names'] = result.info['out_names']
         cur_node.info['in_names'] = result.info['in_names']
+        return cur_node
+
+    @visitor.register(CallNode)
+    def _(self, cur_node: CallNode, *children_values):
+        name, *arguments = children_values
+        all_in_names = list(chain.from_iterable(arg.info['out_names'] for arg in arguments))
+        transformer_name = self._new_transformer_name()
+        transformer = FunctionalTransformer(self.func_env[name])
+        self._schema.add_transformer(transformer_name, inputs=all_in_names, outputs=[transformer_name], transformer=transformer)
+        cur_node.info['assigned_name'] = None
+        cur_node.info['in_names'] = all_in_names
+        cur_node.info['out_names'] = [transformer_name]
         return cur_node
 
     def _new_transformer_name(self) -> str:

@@ -15,19 +15,22 @@
 import inspect
 import random
 import string
-from itertools import cycle
 from datetime import datetime, timezone, timedelta, MINYEAR, MAXYEAR
+from itertools import cycle
 
-from .producer import Producer
-from .dsl.compiler import PairBasedCompatibility
+from .dsl.compiler import PairBasedCompatibility, AnyType, SimpleType
 from .library import Library
+from .producer import Producer
 
 __all__ = [
     'Producer',
     'IntProducer', 'FloatProducer',
     'StringProducer', 'AlphaProducer', 'AlphaNumericProducer',
     'DateProducer',
-    'FixedProducer', 'CyclingProducer', 'RepeaterProducer'
+    'FixedProducer', 'CyclingProducer', 'RepeaterProducer',
+    'BuiltInLibrary', 'BuiltInCompatibility', 'PairBasedCompatibility',
+    'fmt_function',
+    'create_library',
 ]
 
 
@@ -244,6 +247,10 @@ class CyclingProducer(Producer):
         return {'values'}
 
 
+def fmt_function(value, fmt_string):
+    return fmt_string.format(value)
+
+
 class BuiltInLibrary(Library):
     def __init__(self, global_configuration, random_funcs=random):
         super().__init__(global_configuration, random_funcs)
@@ -257,6 +264,13 @@ class BuiltInLibrary(Library):
             'fixed': FixedProducer,
             'cycle': CyclingProducer,
         }
+        self._func_env_types = {
+            'fmt': ([AnyType(), SimpleType('string')], SimpleType('string'))
+        }
+        self._func_env = {
+            'fmt': fmt_function,
+            '::types::': self._func_env_types,
+        }
 
     def get_producer_factory(self, name):
         return self._builtin_factories[name]
@@ -268,7 +282,7 @@ class BuiltInLibrary(Library):
         return {}
 
     def func_env(self):
-        return {}
+        return self._func_env
 
 
 class BuiltInCompatibility(PairBasedCompatibility):

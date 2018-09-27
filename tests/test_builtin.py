@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from itertools import cycle, islice
 
 from feanor.builtin import *
+from feanor.builtin import fmt_function
 
 
 class TestIntProducer(unittest.TestCase):
@@ -257,3 +258,8 @@ class TestDateProducer(unittest.TestCase):
     def test_raises_error_if_mode_is_invalid(self):
         with self.assertRaises(ValueError):
             DateProducer(random_funcs=self.rand, config={'mode': 'invalid'})
+
+
+class TestBuiltinFunction(unittest.TestCase):
+    def test_can_format_a_value(self):
+        self.assertEqual('1.00', fmt_function(1.0, '{:.2f}'))

@@ -40,6 +40,11 @@ class SimpleType(Type):
         super().__init__(name)
 
 
+class AnyType(Type):
+    def __init__(self):
+        super().__init__('any', -1)
+
+
 class CompositeType(Type):
     def __init__(self, types):
         self.types = tuple(flatten_types(types, self.__class__))

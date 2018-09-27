@@ -4,7 +4,7 @@ from feanor.builtin import BuiltInLibrary
 from feanor.dsl.ast import *
 from feanor.dsl.compiler import *
 from feanor.dsl.types import *
-from feanor.library import EmptyLibrary
+from feanor.library import MockLibrary
 from feanor.schema import *
 
 
@@ -482,6 +482,23 @@ class TestPairBasedCompatibility(unittest.TestCase):
         self.assertTrue(compatibility.is_compatible(left_type, right_type))
         self.assertTrue(compatibility.is_compatible(right_type, left_type))
 
+    def test_any_type_is_compatible_with_anything(self):
+        compatibility = self._make_compat(set())
+        self.assertTrue(compatibility.is_compatible(AnyType(), SimpleType('int')))
+        self.assertTrue(compatibility.is_compatible(SimpleType('int'), AnyType()))
+
+    def test_can_assign_anything_to_any_type(self):
+        compatibility = self._make_compat(set())
+        self.assertTrue(compatibility.is_assignable_to(SimpleType('int'), AnyType()))
+
+    def test_any_type_cannot_be_assigned_to_int(self):
+        compatibility = self._make_compat(set())
+        self.assertFalse(compatibility.is_assignable_to(AnyType(), SimpleType('int')))
+
+    def test_any_type_can_be_assigned_to_any_type(self):
+        compatibility = self._make_compat(set())
+        self.assertTrue(compatibility.is_assignable_to(AnyType(), AnyType()))
+
 
 class TestDefaultCompatibility(unittest.TestCase):
     def setUp(self):
@@ -548,7 +565,7 @@ class TestDefaultCompatibility(unittest.TestCase):
 
 class TestCompiler(unittest.TestCase):
     def setUp(self):
-        self.compiler = Compiler(EmptyLibrary())
+        self.compiler = Compiler(MockLibrary())
 
     def test_can_compile_a_type_name_node_with_no_config(self):
         schema = Schema()
@@ -982,6 +999,22 @@ class TestCompiler(unittest.TestCase):
 
         expr = BinaryOpNode.of('.', TypeNameNode.of('int'), AssignNode.of(TypeNameNode.of('float'), 'a'))
         got = self.compiler.compile(expr, column_names=['a'])
+        self.assertEqual(schema, got)
+
+    def test_can_compile_call_node(self):
+        library = MockLibrary()
+        func = lambda x: x
+        library.register_function('ciao', func, [SimpleType('string')], SimpleType('string'))
+        compiler = Compiler(library)
+
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_producer('producer#0', type='string')
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['transformer#0'], transformer=FunctionalTransformer(func))
+        schema.add_transformer('transformer#1', inputs=['transformer#0'], outputs=['a'], transformer=IdentityTransformer(1))
+
+        expr = CallNode.of('ciao', [TypeNameNode.of('string')])
+        got = compiler.compile(expr, column_names=['a'])
         self.assertEqual(schema, got)
 
     def test_example_with_merge(self):

@@ -7,7 +7,7 @@ from contextlib import redirect_stderr
 from types import SimpleNamespace
 
 from feanor.builtin import BuiltInLibrary
-from feanor.library import EmptyLibrary
+from feanor.library import MockLibrary
 from feanor.main import (
     make_schema_cmdline, get_library, _parse_global_configuration, make_schema_expr,
     get_schema_size_and_library_params,
@@ -18,7 +18,7 @@ from feanor.schema import IdentityTransformer
 class TestMakeSchemaCmdline(unittest.TestCase):
 
     def test_can_make_schema_with_a_single_column(self):
-        schema = make_schema_cmdline([('A', '%int')], [], show_header=True, library=EmptyLibrary())
+        schema = make_schema_cmdline([('A', '%int')], [], show_header=True, library=MockLibrary())
         self.assertTrue(schema.show_header)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.producers))
@@ -32,7 +32,7 @@ class TestMakeSchemaCmdline(unittest.TestCase):
         self.assertEqual(expected_transformer_copy, schema.transformers[1])
 
     def test_can_make_schema_with_multiple_columns(self):
-        schema = make_schema_cmdline([('A', '%int'), ('B', '%int')], [], show_header=True, library=EmptyLibrary())
+        schema = make_schema_cmdline([('A', '%int'), ('B', '%int')], [], show_header=True, library=MockLibrary())
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         producers = sorted(schema.producers, key=lambda x: x.name)
@@ -55,7 +55,7 @@ class TestMakeSchemaCmdline(unittest.TestCase):
 
     def test_can_make_schema_with_transformers(self):
         schema = make_schema_cmdline([('A', '@bob'), ('B', '%int')], [('bob', '%int')], show_header=True,
-                                     library=EmptyLibrary())
+                                     library=MockLibrary())
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         producers = sorted(schema.producers, key=lambda x: x.name)
@@ -83,7 +83,7 @@ class TestMakeSchemaCmdline(unittest.TestCase):
 class TestMakeSchemaExpr(unittest.TestCase):
 
     def test_can_make_schema_with_a_single_column(self):
-        schema = make_schema_expr('%int', ['A'], show_header=True, library=EmptyLibrary())
+        schema = make_schema_expr('%int', ['A'], show_header=True, library=MockLibrary())
         self.assertTrue(schema.show_header)
         self.assertEqual(('A',), schema.columns)
         self.assertEqual(1, len(schema.producers))
@@ -94,7 +94,7 @@ class TestMakeSchemaExpr(unittest.TestCase):
         self.assertEqual(expected_transformer, schema.transformers[0])
 
     def test_can_make_schema_with_multiple_columns(self):
-        schema = make_schema_expr('%int . %int', ['A', 'B'], show_header=True, library=EmptyLibrary())
+        schema = make_schema_expr('%int . %int', ['A', 'B'], show_header=True, library=MockLibrary())
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         producers = sorted(schema.producers, key=lambda x: x.name)
@@ -110,7 +110,7 @@ class TestMakeSchemaExpr(unittest.TestCase):
         self.assertEqual(expected_transformer_B, schema.transformers[1])
 
     def test_can_make_schema_with_transformers(self):
-        schema = make_schema_expr('let bob:=%int in @bob . %int', ['A', 'B'], show_header=True, library=EmptyLibrary())
+        schema = make_schema_expr('let bob:=%int in @bob . %int', ['A', 'B'], show_header=True, library=MockLibrary())
         self.assertTrue(schema.show_header)
         self.assertEqual(('A', 'B'), schema.columns)
         producers = sorted(schema.producers, key=lambda x: x.name)
