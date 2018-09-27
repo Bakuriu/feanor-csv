@@ -183,8 +183,8 @@ class TypeInferencer:
                 f'{len(inferred_arg_types)} instead of {len(expected_arg_types)}')
         for i, (arg_type, expected_arg_type) in enumerate(zip(inferred_arg_types, expected_arg_types)):
             if not self.compatibility.is_assignable_to(arg_type, expected_arg_type):
-                raise TypeError(
-                    f'Incompatible types for argument {i} of {func_name}: {arg_type} instead of {expected_arg_type}')
+                raise TypeError(f'Incompatible types for argument {i} of {func_name}: '
+                                f'{arg_type} instead of {expected_arg_type}')
         tree.info['type'] = inferred_type
         return inferred_type
 
