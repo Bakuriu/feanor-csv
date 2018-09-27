@@ -160,7 +160,7 @@ def get_library(library_name, global_configuration, random_funcs):
 def _parse_columns(columns):
     in_file = io.StringIO(columns)
     reader = csv.reader(in_file, delimiter=',')
-    return next(reader)
+    return next(reader, None)
 
 
 def _parse_global_configuration(configuration):

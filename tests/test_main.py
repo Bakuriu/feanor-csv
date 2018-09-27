@@ -316,6 +316,23 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         self.assertEqual(0.7579544029403025, library.random_funcs.random())
         self.assertEqual(0.420571580830845, library.random_funcs.random())
 
+    def test_can_omit_column_names(self):
+        args = SimpleNamespace(
+            library='feanor.builtin',
+            global_configuration={},
+            random_module=random,
+            random_seed=None,
+            schema_definition_type='expr',
+            schema='%int . %int',
+            columns_names='',
+            show_header=False,
+            num_rows=1,
+            stream_mode=False,
+            num_bytes=None,
+        )
+        schema, _, _ = get_schema_size_and_library_params(args)
+        self.assertEqual(('column#0', 'column#1'), schema.columns)
+
 
 class TestGetLibrary(unittest.TestCase):
     def setUp(self):
