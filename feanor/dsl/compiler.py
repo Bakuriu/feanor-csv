@@ -173,7 +173,10 @@ class TypeInferencer:
     def _(self, tree: CallNode):
         inferred_arg_types = list(map(self.infer, tree.children[1:]))
         func_name = tree.children[0].name
-        expected_arg_types, inferred_type = self.func_env[func_name]
+        try:
+            expected_arg_types, inferred_type = self.func_env[func_name]
+        except KeyError:
+            raise ValueError('Unknown function {!r}'.format(func_name))
         if len(inferred_arg_types) != len(expected_arg_types):
             raise TypeError(
                 f'Incorrect number of arguments to function {func_name}: '
