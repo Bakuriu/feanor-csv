@@ -326,6 +326,12 @@ class TestTypeInferencer(unittest.TestCase):
             inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('string')]))
         self.assertEqual('Incompatible types for argument 0 of ciao: string instead of int', str(ctx.exception))
 
+    def test_raises_error_if_function_called_does_not_exist(self):
+        with self.assertRaises(ValueError) as ctx:
+            inferencer = TypeInferencer(self.library.compatibility())
+            inferencer.infer(CallNode.of('ciao', [TypeNameNode.of('string')]))
+        self.assertEqual("Unknown function 'ciao'", str(ctx.exception))
+
     def test_raises_error_if_merge_on_incompatible_parallel_types(self):
         with self.assertRaises(TypeError) as ctx:
             inferencer = TypeInferencer(self.library.compatibility(),
@@ -1016,3 +1022,8 @@ class TestCompiler(unittest.TestCase):
     def test_raises_error_with_invalid_binary_operator(self):
         with self.assertRaises(TypeError):
             self.compiler.compile(BinaryOpNode.of('<', TypeNameNode.of('int'), TypeNameNode.of('float')))
+
+    def test_raises_error_when_too_many_columns_specified(self):
+        with self.assertRaises(TypeError) as ctx:
+            self.compiler.compile(TypeNameNode.of('int'), column_names=['A', 'B'])
+        self.assertEqual('defined 2 columns but only 1 values produced.', str(ctx.exception))
