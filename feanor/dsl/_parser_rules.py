@@ -104,6 +104,7 @@ def p_numeric_list(p):
 def p_factor(p):
     """factor : type
               | reference
+              | simple_expr
               | '(' expr ')' opt_assignment
     """
     if len(p) > 2:
@@ -119,7 +120,7 @@ def p_type(p):
 
 def p_opt_producer(p):
     """opt_producer : ':' IDENTIFIER
-                     | empty
+                    | empty
     """
     p[0] = p[2] if len(p) == 3 else 'default'
 
@@ -249,3 +250,17 @@ def p_error(p):
     else:
         msg = 'Invalid syntax.'
     raise ParsingError(msg)
+
+
+def p_simple_expr(p):
+    """simple_expr : simple_literal """
+    p[0] = SimpleExprNode.of(p[1])
+
+
+def p_simple_literal(p):
+    """simple_literal : STRING
+                      | INTEGER
+                      | FLOAT
+                      | list_literal
+    """
+    p[0] = LiteralNode.of(p[1])

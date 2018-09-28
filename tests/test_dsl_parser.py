@@ -1,4 +1,5 @@
 import unittest
+from ast import literal_eval
 
 from feanor.dsl import get_parser
 from feanor.dsl.ast import *
@@ -133,6 +134,14 @@ class TestParser(ParsingTestCase):
         expected = ProjectionNode.of(TypeNameNode.of('int'), 3, 5, 7)
         self.assertEqual(expected, got)
 
+    def test_simple_expression_literal(self):
+        literals = ['5', '5.0', '[1,2,3]', '"string"']
+        for literal in literals:
+            got = self.parser.parse(literal)
+            expected = SimpleExprNode.of(LiteralNode.of(literal_eval(literal)))
+            self.assertEqual(expected, got)
+
+
 
 class TestOperatorPrecedence(ParsingTestCase):
 
@@ -212,6 +221,11 @@ class TestComplexExpressions(ParsingTestCase):
         expected = AssignNode.of(expr, 'name')
         self.assertEqual(expected, got)
 
+    def test_simple_expression(self):
+        got = self.parser.parse('2+5')
+        expected = BinaryOpNode.of('+', SimpleExprNode.of(LiteralNode.of(2)), SimpleExprNode.of(LiteralNode.of(5)))
+        self.assertEqual(expected, got)
+
 
 class TestPerformance(ParsingTestCase):
     def test_can_deeply_nest_expression(self):
@@ -233,9 +247,10 @@ class TestIncorrectExpressions(ParsingTestCase):
         with self.assertRaises(ParsingError):
             self.parser.parse('my.function(%int)')
 
-    def test_raises_error_if_argument_is_literal(self):
+    @unittest.skip
+    def test_raises_error_if_argument_is_literal_expression(self):
         with self.assertRaises(ParsingError):
-            self.parser.parse('ciao(5)')
+            self.parser.parse('ciao(5+5)')
 
     def test_raises_error_if_unbalanced_parenthesis(self):
         with self.assertRaises(ParsingError):

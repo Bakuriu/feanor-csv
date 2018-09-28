@@ -258,6 +258,39 @@ class TestTypeInferencer(unittest.TestCase):
         self.assertEqual({'type': SimpleType('int')}, reference.info)
         self.assertEqual({'type': SimpleType('int')}, tree.info)
 
+    def test_can_infer_type_of_simple_expr(self):
+        got = self.inferencer.infer(SimpleExprNode.of(LiteralNode.of(10)))
+        self.assertEqual(SimpleType('int'), got)
+
+    def test_inferring_type_of_simple_expr_sets_info_value(self):
+        literal = LiteralNode.of(10)
+        tree = SimpleExprNode.of(literal)
+        self.inferencer.infer(tree)
+        self.assertEqual({'type': SimpleType('int')}, literal.info)
+        self.assertEqual({'type': SimpleType('int')}, tree.info)
+
+    def test_can_infer_type_of_simple_expr_with_list(self):
+        got = self.inferencer.infer(SimpleExprNode.of(LiteralNode.of([1,2,3])))
+        self.assertEqual(ParallelType(3*[SimpleType('int')]), got)
+
+    def test_inferring_type_of_simple_expr_with_list_sets_info_value(self):
+        literal = LiteralNode.of([1, 2, 3])
+        tree = SimpleExprNode.of(literal)
+        self.inferencer.infer(tree)
+        self.assertEqual({'type': ParallelType(3*[SimpleType('int')])}, literal.info)
+        self.assertEqual({'type': ParallelType(3*[SimpleType('int')])}, tree.info)
+
+    def test_can_infer_type_of_simple_expr_with_string(self):
+        got = self.inferencer.infer(SimpleExprNode.of(LiteralNode.of("ciao")))
+        self.assertEqual(SimpleType('string'), got)
+
+    def test_inferring_type_of_simple_expr_with_string_sets_info_value(self):
+        literal = LiteralNode.of("ciao")
+        tree = SimpleExprNode.of(literal)
+        self.inferencer.infer(tree)
+        self.assertEqual({'type': SimpleType('string')}, literal.info)
+        self.assertEqual({'type': SimpleType('string')}, tree.info)
+
     def test_raises_error_when_merging_incompatible_types(self):
         with self.assertRaises(TypeError):
             self.inferencer.infer(BinaryOpNode.of('+', TypeNameNode.of('int'), TypeNameNode.of('string')))
@@ -348,6 +381,11 @@ class TestTypeInferencer(unittest.TestCase):
                                         env={'a': ParallelType([SimpleType('int')]), 'b': SimpleType('float')})
             inferencer.infer(BinaryOpNode.of('+', ReferenceNode.of('a'), ReferenceNode.of('b')))
         self.assertEqual("Incompatible types for merge: Parallel(int) and float", str(ctx.exception))
+
+    def test_raises_error_if_trying_to_infer_type_of_literal_outside_simple_expr(self):
+        with self.assertRaises(TypeError) as ctx:
+            self.inferencer.infer(LiteralNode.of(5))
+        self.assertEqual("This expression can only appear inside a simple expression: 5", str(ctx.exception))
 
 
 class TestPairBasedCompatibility(unittest.TestCase):
@@ -582,7 +620,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['producer#0'],
+            'in_names': [],
             'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -602,7 +640,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['producer#0'],
+            'in_names': [],
             'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -622,7 +660,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['producer#0'],
+            'in_names': [],
             'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -642,7 +680,7 @@ class TestCompiler(unittest.TestCase):
         expected_info = {
             'type': SimpleType('int'),
             'assigned_name': None,
-            'in_names': ['producer#0'],
+            'in_names': [],
             'out_names': ['producer#0'],
         }
         self.assertEqual(expected_info, tree.info)
@@ -1017,6 +1055,45 @@ class TestCompiler(unittest.TestCase):
         got = compiler.compile(expr, column_names=['a'])
         self.assertEqual(schema, got)
 
+    def test_can_compile_a_simple_expression(self):
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_producer('producer#0', type='fixed', config={'value': 5})
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'], transformer=IdentityTransformer(1))
+        expr = SimpleExprNode.of(LiteralNode.of(5))
+        got = self.compiler.compile(expr, column_names=['a'])
+        self.assertEqual(schema, got)
+
+    def test_can_compile_a_reference_to_an_env_var(self):
+        library = MockLibrary()
+        library.register_variable('ciao', 5, SimpleType('int'))
+        compiler = Compiler(library)
+
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_producer('producer#0', type='fixed', config={'value': 5})
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'], transformer=IdentityTransformer(1))
+
+        expr = ReferenceNode.of('ciao')
+        got = compiler.compile(expr, column_names=['a'])
+        self.assertEqual(schema, got)
+
+    def test_multiple_references_to_env_var_do_not_create_more_producers(self):
+        library = MockLibrary()
+        library.register_variable('ciao', 5, SimpleType('int'))
+        compiler = Compiler(library)
+
+        schema = Schema()
+        schema.add_column('a')
+        schema.add_column('b')
+        schema.add_producer('producer#0', type='fixed', config={'value': 5})
+        schema.add_transformer('transformer#0', inputs=['producer#0'], outputs=['a'], transformer=IdentityTransformer(1))
+        schema.add_transformer('transformer#1', inputs=['producer#0'], outputs=['b'], transformer=IdentityTransformer(1))
+
+        expr = BinaryOpNode.of('.', ReferenceNode.of('ciao'), ReferenceNode.of('ciao'))
+        got = compiler.compile(expr, column_names=['a', 'b'])
+        self.assertEqual(schema, got)
+
     def test_example_with_merge(self):
         schema = Schema()
         schema.add_column('transformer#1#0')
@@ -1060,3 +1137,8 @@ class TestCompiler(unittest.TestCase):
         with self.assertRaises(TypeError) as ctx:
             self.compiler.compile(TypeNameNode.of('int'), column_names=['A', 'B'])
         self.assertEqual('defined 2 columns but only 1 values produced.', str(ctx.exception))
+
+    def test_raises_error_if_reference_is_not_defined_and_not_a_constant(self):
+        with self.assertRaises(KeyError) as ctx:
+            self.compiler.compile(ReferenceNode.of('@non_existent'), column_names=['A'])
+        self.assertEqual("'@non_existent'", str(ctx.exception))

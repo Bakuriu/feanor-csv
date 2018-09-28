@@ -134,6 +134,7 @@ class TypeInferencer:
         self.compatibility = compatibility
         self.env = env if env is not None else {}
         self.func_env = func_env if func_env is not None else {}
+        self._inside_simple_expr = False
 
     @overloaded
     def infer(self, tree: ExprNode) -> Type:  # pragma: no cover
@@ -207,6 +208,29 @@ class TypeInferencer:
         tree.info['type'] = inferred_type
         return inferred_type
 
+    @infer.register(SimpleExprNode)
+    def _(self, tree: SimpleExprNode):
+        expr = tree.children[0]
+
+        inferred_type = self._infer_simple_expr(expr)
+        tree.info['type'] = inferred_type
+        return inferred_type
+
+    @infer.register(LiteralNode)
+    def _(self, tree: LiteralNode):
+        if not self._inside_simple_expr:
+            raise TypeError('This expression can only appear inside a simple expression: {!r}'.format(tree.literal))
+
+        if tree.literal_type == list:
+            # FIXME: we probably need to flatten the value?
+            inferred_type = ParallelType([self.infer(LiteralNode.of(v)) for v in tree.literal])
+        elif tree.literal_type == str:
+            inferred_type = SimpleType('string')
+        else:
+            inferred_type = SimpleType(tree.literal_type.__name__)
+        tree.info['type'] = inferred_type
+        return inferred_type
+
     @infer.register(BinaryOpNode)
     def _(self, tree: BinaryOpNode):
         left_ty = self.infer(tree.children[1])
@@ -241,13 +265,23 @@ class TypeInferencer:
     def _infer_concat(self, left_ty, right_ty):
         return ParallelType([left_ty, right_ty])
 
+    def _infer_simple_expr(self, expr: ExprNode):
+        self._inside_simple_expr = True
+        value = self.infer(expr)
+        self._inside_simple_expr = False
+        return value
+
 
 class Compiler:
     def __init__(self, library, show_header=True):
-        self.compatibility = library.compatibility()
-        self.func_env = library.func_env()
-        self.env = library.env()
-        self._inferencer = TypeInferencer(self.compatibility, self.env.get('::types::'), self.func_env.get('::types::'))
+        self._compatibility = library.compatibility()
+        self._func_env = library.func_env()
+        self._env = {'::constants::': library.env()}
+        self._inferencer = TypeInferencer(
+            self._compatibility,
+            self._env['::constants::'].get('::types::'),
+            self._func_env.get('::types::')
+        )
         self._schema = Schema(show_header=show_header)
         self._cur_producer_id = 0
         self._cur_transformer_id = 0
@@ -312,7 +346,7 @@ class Compiler:
         name = self._new_producer_name()
         self._schema.add_producer(name, type=producer if producer != 'default' else type_name, config=config)
         cur_node.info['assigned_name'] = None
-        cur_node.info['in_names'] = [name]
+        cur_node.info['in_names'] = []
         cur_node.info['out_names'] = [name]
         return cur_node
 
@@ -320,7 +354,7 @@ class Compiler:
     def _(self, cur_node: AssignNode, *children_values):
         result, name = children_values
         res_outputs = result.info['out_names']
-        self.env[name] = res_outputs
+        self._env[name] = res_outputs
         if len(res_outputs) == 1:
             self._schema.add_transformer(self._new_transformer_name(), inputs=res_outputs, outputs=[name],
                                          transformer=IdentityTransformer(1))
@@ -372,8 +406,14 @@ class Compiler:
     def _(self, cur_node: ReferenceNode, *children_values):
         name, = children_values
         cur_node.info['assigned_name'] = None
-        cur_node.info['in_names'] = [name]
-        cur_node.info['out_names'] = self.env[name]
+        cur_node.info['in_names'] = []
+        try:
+            cur_node.info['out_names'] = self._env[name]
+        except KeyError:
+            producer_name = self._new_producer_name()
+            self._schema.add_producer(producer_name, type='fixed', config={'value': self._env['::constants::'][name]})
+            self._env[name] = [producer_name]
+            cur_node.info['out_names'] = [producer_name]
         return cur_node
 
     @visitor.register(ProjectionNode)
@@ -398,11 +438,21 @@ class Compiler:
         name, *arguments = children_values
         all_in_names = list(chain.from_iterable(arg.info['out_names'] for arg in arguments))
         transformer_name = self._new_transformer_name()
-        transformer = FunctionalTransformer(self.func_env[name])
+        transformer = FunctionalTransformer(self._func_env[name])
         self._schema.add_transformer(transformer_name, inputs=all_in_names, outputs=[transformer_name], transformer=transformer)
         cur_node.info['assigned_name'] = None
         cur_node.info['in_names'] = all_in_names
         cur_node.info['out_names'] = [transformer_name]
+        return cur_node
+
+    @visitor.register(SimpleExprNode)
+    def _(self, cur_node: SimpleExprNode, *children_values):
+        expr_value, = children_values
+        name = self._new_producer_name()
+        self._schema.add_producer(name, type='fixed', config={'value': expr_value})
+        cur_node.info['assigned_name'] = None
+        cur_node.info['in_names'] = []
+        cur_node.info['out_names'] = [name]
         return cur_node
 
     def _new_transformer_name(self) -> str:

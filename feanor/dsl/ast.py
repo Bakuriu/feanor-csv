@@ -193,5 +193,14 @@ class LetNode(ExprNode):
         return cls([AssignNode(e, Identifier.of(name)) for name, e in defines], expr)
 
 
+class SimpleExprNode(ExprNode):
+    def __init__(self, expr: ExprNode):
+        super().__init__(expr)
+
+    @classmethod
+    def of(cls, expr):
+        return cls(expr)
+
+
 class ParsingError(ValueError):
     """Exception raised when the expression describing an producer type is invalid."""
