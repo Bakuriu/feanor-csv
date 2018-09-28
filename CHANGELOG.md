@@ -6,9 +6,15 @@
     | Issue Number     | Fix description                                              |
     |------------------|--------------------------------------------------------------|
     | [issue #26][#26] | Correct error message is raised when the number of produced<br> values is incorrect. | 
+ * Added support for function calls and added the built-in `fmt` function that can be used to
+   format values. See [issue #27][#27]
+ * It is now possible to use constants in expressions such as `%int + 5`. A constant creates a
+   `fixed` producer with the given value. See [issue #28][#28]
+ * Added support for providing constants in libraries. It was not complete before.
 
 [#26]: https://github.com/Bakuriu/feanor-csv/issues/26
-
+[#27]: https://github.com/Bakuriu/feanor-csv/issues/27
+[#28]: https://github.com/Bakuriu/feanor-csv/issues/28
 
 0.5.0 - 2018/09/21
 ==================
