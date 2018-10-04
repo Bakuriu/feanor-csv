@@ -29,7 +29,6 @@ def p_expr(p):
     """expr : expr '|' choice
             | expr '<' opt_literal expr_dispatcher
             | choice
-            | call
             | let_expr
     """
     if len(p) == 4:
@@ -105,6 +104,7 @@ def p_factor(p):
     """factor : type
               | reference
               | simple_expr
+              | call
               | '(' expr ')' opt_assignment
     """
     if len(p) > 2:
