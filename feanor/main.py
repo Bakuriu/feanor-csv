@@ -15,9 +15,10 @@
 import io
 import ast
 import csv
+import re
 import sys
 import argparse
-from itertools import starmap
+from itertools import starmap, chain
 
 from . import __version__
 from .util import load_python_module, cls_name
@@ -48,7 +49,7 @@ def parse_arguments(args=None):
 def get_schema_size_and_library_params(args):
     if args.random_seed is not None:
         args.random_module.seed(args.random_seed)
-    library = get_library(args.library, args.global_configuration, args.random_module)
+    library = get_library(args.library, args.global_configuration, args.define, args.random_module)
     if args.schema_definition_type in ('cmdline', 'options', 'opts'):
         schema = make_schema_cmdline(args.columns, args.expressions_defined, args.show_header, library)
     elif args.schema_definition_type == 'expr':
@@ -71,6 +72,8 @@ def get_parser():
     parser.add_argument('--no-header', action='store_false', help='Do not add header to the output.',
                         dest='show_header')
     parser.add_argument('-L', '--library', default='feanor.builtin', help='The library to use.')
+    parser.add_argument('-D', '--define', default={}, type=_parse_define,
+                        help='Type alias definitions for producers.')
     parser.add_argument('-C', '--global-configuration', default={}, type=_parse_global_configuration,
                         help='The global configuration for producers.')
     parser.add_argument('-r', '--random-module', default='random', type=load_python_module,
@@ -134,7 +137,7 @@ def make_schema_let_expression(definitions, col_names):
     return 'let {} in ({})'.format(definitions, '.'.join('@' + name for name in col_names))
 
 
-def get_library(library_name, global_configuration, random_funcs):
+def get_library(library_name, global_configuration, definitions, random_funcs):
     try:
         library_module = load_python_module(library_name)
     except SystemExit as e:
@@ -148,7 +151,7 @@ def get_library(library_name, global_configuration, random_funcs):
         sys.exit(1)
     else:
         try:
-            return library_module.create_library(global_configuration, random_funcs)
+            return library_module.create_library(global_configuration, definitions, random_funcs)
         except Exception as e:
             print(f'Exception while initializing library {repr(library_name)}:\n{cls_name(e)}: {e}', file=sys.stderr)
             sys.exit(1)
@@ -168,6 +171,25 @@ def _parse_global_configuration(configuration):
     if not isinstance(value, dict):
         raise argparse.ArgumentTypeError
     return value
+
+def _parse_define(define_expr):
+    # FIXME: actually parse this in a robust way
+    defines = list(chain.from_iterable(map(lambda line: line.split(';'), define_expr.splitlines())))
+    definitions = {}
+    for define in defines:
+        match = re.fullmatch(r'\s*(?P<name>\w+)\s*:=\s*%\s*(?P<typename>\w+)(?::(?P<prodname>\w+))?(?P<config>{.*})?\s*', define)
+        if not match:
+            raise argparse.ArgumentTypeError
+        name = match.group('name')
+        groupdict = match.groupdict()
+        typename = groupdict['typename']
+        if name in definitions:
+            raise argparse.ArgumentTypeError
+        definitions[name] = {
+            'producer': groupdict['prodname'] or typename,
+            'config': ast.literal_eval(groupdict['config'] or '{}')
+        }
+    return definitions
 
 
 if __name__ == '__main__':

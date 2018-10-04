@@ -7,6 +7,7 @@ from itertools import cycle, islice
 
 from feanor.builtin import *
 from feanor.builtin import fmt_function
+from feanor.producer import Config
 
 
 class TestIntProducer(unittest.TestCase):
@@ -263,3 +264,17 @@ class TestDateProducer(unittest.TestCase):
 class TestBuiltinFunction(unittest.TestCase):
     def test_can_format_a_value(self):
         self.assertEqual('1.00', fmt_function(1.0, '{:.2f}'))
+
+
+class TestCreateLibrary(unittest.TestCase):
+    def test_can_create_library_without_definitions(self):
+        library = create_library({}, {}, random)
+        got = library.make_producer('fixed', {'value': 10})
+        self.assertIsInstance(got, FixedProducer)
+        self.assertEqual(Config(value=10), got.config)
+
+    def test_can_create_library_with_definitions(self):
+        library = create_library({}, {'perc': {'producer': 'int', 'config': {'max':100}}}, random)
+        got = library.make_producer('perc', {'min': 10})
+        self.assertIsInstance(got, IntProducer)
+        self.assertEqual(Config(min=10, max=100), got.config)

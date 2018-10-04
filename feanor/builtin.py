@@ -254,7 +254,7 @@ def fmt_function(value, fmt_string):
 class BuiltInLibrary(Library):
     def __init__(self, global_configuration, random_funcs=random):
         super().__init__(global_configuration, random_funcs)
-        self._builtin_factories = {
+        factories = {
             'int': IntProducer,
             'float': FloatProducer,
             'string': StringProducer,
@@ -271,9 +271,7 @@ class BuiltInLibrary(Library):
             'fmt': fmt_function,
             '::types::': self._func_env_types,
         }
-
-    def get_producer_factory(self, name):
-        return self._builtin_factories[name]
+        self.register_factories(factories)
 
     def compatibility(self):
         return BuiltInCompatibility()
@@ -295,6 +293,9 @@ class BuiltInCompatibility(PairBasedCompatibility):
         })
 
 
-def create_library(global_configuration, random_funcs):
+def create_library(global_configuration, definitions, random_funcs):
     """Entry-point for the producer library."""
-    return BuiltInLibrary(global_configuration, random_funcs)
+    library = BuiltInLibrary(global_configuration, random_funcs)
+    if definitions:
+        library.register_definitions(definitions)
+    return library

@@ -11,9 +11,9 @@ Release `1.0.0` will provide a stable API and stable command line interface for 
 
 ```
 $ feanor --help
-usage: feanor [-h] [--no-header] [-L LIBRARY] [-C GLOBAL_CONFIGURATION]
-              [-r RANDOM_MODULE] [-s RANDOM_SEED] [--version]
-              (-n N | -b N | --stream-mode STREAM_MODE)
+usage: feanor [-h] [--no-header] [-L LIBRARY] [-D DEFINE]
+              [-C GLOBAL_CONFIGURATION] [-r RANDOM_MODULE] [-s RANDOM_SEED]
+              [--version] (-n N | -b N | --stream-mode STREAM_MODE)
               {expr,cmdline} ...
 
 optional arguments:
@@ -21,6 +21,8 @@ optional arguments:
   --no-header           Do not add header to the output.
   -L LIBRARY, --library LIBRARY
                         The library to use.
+  -D DEFINE, --define DEFINE
+                        Type alias definitions for producers.
   -C GLOBAL_CONFIGURATION, --global-configuration GLOBAL_CONFIGURATION
                         The global configuration for producers.
   -r RANDOM_MODULE, --random-module RANDOM_MODULE
@@ -48,9 +50,9 @@ feanor 0.6.0-alpha
 Each producer is assigned an "producer type", which describes how to generate the values.
 The syntax of the producer type is the following:
 
-    # <PRODUCER_NAME> [ CONFIG ]
+    % <TYPE_NAME>[ : <PRODUCER_NAME>] [ CONFIG ]
 
-Where `PRODUCER_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
+Where `TYPE_NAME` and `PRODUCER_NAME` must match `\w+` and `CONFIG` is a python `dict` literal.
 
 For example the built-in `int` producer type can be used in the following ways:
 
@@ -58,6 +60,42 @@ For example the built-in `int` producer type can be used in the following ways:
  - `%int{"min": 10}`: do not generate numbers smaller than `10` (inclusive).
  - `%int{"max": 10}`: do not generate numbers bigger than `10` (inclusive).
  - `%int{"min": 10, "max":1000}`: generate numbers between `10` and `1000` (both inclusive).
+
+In all these cases we omitted `PRODUCER_NAME`. When specifying the `PRODUCER_NAME` we are telling feanor
+that it should generate the values using `PRODUCER_NAME` as producer but it should treat the expression
+as if the type was `TYPE_NAME`.
+
+This is useful in the cases where you want to provide a new producer for an existing type and you don't want
+to also have to redefine the compatibility in the library.
+
+## Type definitions
+
+It is possible to define "aliases" for types with a given configuration by using the `-D` or `--define` option.
+The value of this option should be a string of the form:
+
+```
+( <PRODUCER_NAME> := % <PRODUCER_NAME> [ CONFIG ] )+
+```
+
+The separator of these expressions is either the newline `\n` or `;`.
+
+For example to define a `perc` producer which yields floating point numbers in the range `0-100` you can do:
+
+```
+-D "perc := %float{'min': 0, 'max': 100}"
+```
+
+And then you will be able to use `%perc` as if it was a built-in type:
+
+```
+$ feanor -s 0 -n 5  -D "perc := %float{'min': 0, 'max': 100}" cmdline -c a %perc
+a
+84.4421851525048
+75.79544029403024
+42.0571580830845
+25.891675029296334
+51.12747213686085
+```
 
 
 ## Feanor DSL Expressions
@@ -67,7 +105,7 @@ allow to express complex logic for your data generation.
 
 ### Producer definitions
 
-An producer definition is simply its type and follows the syntax `#<NAME>[CONFIG]` as explained before.
+A producer definition is simply its type and follows the syntax `%<NAME>[CONFIG]` as explained before.
 
 
 ### Assignments

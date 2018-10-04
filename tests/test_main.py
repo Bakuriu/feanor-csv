@@ -11,6 +11,7 @@ from feanor.library import MockLibrary
 from feanor.main import (
     make_schema_cmdline, get_library, _parse_global_configuration, make_schema_expr,
     get_schema_size_and_library_params,
+    _parse_define,
 )
 from feanor.schema import IdentityTransformer
 
@@ -134,6 +135,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='cmdline',
@@ -160,6 +162,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='cmdline',
@@ -186,6 +189,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='cmdline',
@@ -212,6 +216,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='expr',
@@ -238,6 +243,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='expr',
@@ -264,6 +270,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='expr',
@@ -290,6 +297,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='invalid',
@@ -301,6 +309,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=0,
             schema_definition_type='cmdline',
@@ -320,6 +329,7 @@ class TestGetSchemaSizeAndLibraryParams(unittest.TestCase):
         args = SimpleNamespace(
             library='feanor.builtin',
             global_configuration={},
+            define={},
             random_module=random,
             random_seed=None,
             schema_definition_type='expr',
@@ -339,20 +349,20 @@ class TestGetLibrary(unittest.TestCase):
         self.fake_modules_dir = os.path.join(os.path.dirname(__file__), 'fake_modules')
 
     def test_can_get_builtin_library(self):
-        library = get_library('feanor.builtin', {}, random)
+        library = get_library('feanor.builtin', {}, {}, random)
         self.assertIsInstance(library, BuiltInLibrary)
         self.assertEqual({}, library.global_configuration)
         self.assertIs(random, library.random_funcs)
 
     def test_exits_with_code_one_error_if_invalid_name(self):
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as e:
-            get_library('invalid', {}, random)
+            get_library('invalid', {}, {}, random)
         self.assertEqual(1, e.exception.code)
 
     def test_exits_with_code_one_error_if_library_requests_exit_during_import(self):
         output = io.StringIO()
         with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
-            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exits.py'), {}, random)
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exits.py'), {}, {}, random)
         self.assertEqual(1, e.exception.code)
         self.assertRegex(new_stderr.getvalue(),
                          r"Exit requested while importing library '[^']+/fake_library_exits.py'. Exit code 7")
@@ -360,7 +370,7 @@ class TestGetLibrary(unittest.TestCase):
     def test_exits_with_code_one_error_if_library_raises_exception_during_import(self):
         output = io.StringIO()
         with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
-            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exception.py'), {}, random)
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exception.py'), {}, {}, random)
         self.assertEqual(1, e.exception.code)
         self.assertRegex(new_stderr.getvalue(),
                          r"Exception while importing library '[^']+/fake_library_exception.py'.\nException: error!\n")
@@ -368,7 +378,7 @@ class TestGetLibrary(unittest.TestCase):
     def test_exits_with_code_one_error_if_library_raises_fatal_error_during_import(self):
         output = io.StringIO()
         with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
-            get_library(os.path.join(self.fake_modules_dir, 'fake_library_fatal_error.py'), {}, random)
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_fatal_error.py'), {}, {}, random)
         self.assertEqual(1, e.exception.code)
         self.assertRegex(new_stderr.getvalue(),
                          r"Fatal error while importing library '[^']+/fake_library_fatal_error.py'.\nBaseException: fatal error!\n")
@@ -376,7 +386,7 @@ class TestGetLibrary(unittest.TestCase):
     def test_exits_with_code_one_error_if_library_raises_exception_during_initialization(self):
         output = io.StringIO()
         with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
-            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exception_on_init.py'), {}, random)
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_exception_on_init.py'), {}, {}, random)
         self.assertEqual(1, e.exception.code)
         self.assertRegex(new_stderr.getvalue(),
                          r"Exception while initializing library '[^']+/fake_library_exception_on_init.py'.\nException: error!\n")
@@ -384,7 +394,7 @@ class TestGetLibrary(unittest.TestCase):
     def test_exits_with_code_one_error_if_library_raises_fatal_error_during_initialization(self):
         output = io.StringIO()
         with redirect_stderr(output) as new_stderr, self.assertRaises(SystemExit) as e:
-            get_library(os.path.join(self.fake_modules_dir, 'fake_library_fatal_error_on_init.py'), {}, random)
+            get_library(os.path.join(self.fake_modules_dir, 'fake_library_fatal_error_on_init.py'), {}, {}, random)
         self.assertEqual(1, e.exception.code)
         self.assertRegex(new_stderr.getvalue(),
                          r"Fatal error while initializing library '[^']+/fake_library_fatal_error_on_init.py'.\nBaseException: fatal error!\n")
@@ -398,3 +408,35 @@ class TestParseGlobalConfiguration(unittest.TestCase):
     def test_raises_error_if_not_dict(self):
         with self.assertRaises(argparse.ArgumentTypeError):
             _parse_global_configuration("[1,2,3]")
+
+
+class TestParseDefine(unittest.TestCase):
+    def test_can_parse_a_define_without_configuration(self):
+        define = _parse_define("a := %int")
+        self.assertEqual({'a': {'producer': 'int', 'config': {}}}, define)
+
+    def test_can_parse_a_define_with_configuration(self):
+        define = _parse_define("a := %int{'max': 10}")
+        self.assertEqual({'a': {'producer': 'int', 'config': {'max': 10}}}, define)
+
+    def test_can_parse_multiple_defines(self):
+        define = _parse_define("a := %int\nb := %float")
+        expected = {
+            'a': {'producer': 'int', 'config': {}},
+            'b': {'producer': 'float', 'config': {}},
+        }
+        self.assertEqual(expected, define)
+
+    def test_raises_error_if_invalid_define(self):
+        invalid_expressions = [
+            'int = %int',
+            'completely wrong',
+            'int := %int{"v": 5',
+        ]
+        for invalid_expression in invalid_expressions:
+            with self.assertRaises(argparse.ArgumentTypeError):
+                _parse_define(invalid_expression)
+
+    def test_raises_error_if_multiple_definitions_of_same_name(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _parse_define('a := %int\n a := %float')
