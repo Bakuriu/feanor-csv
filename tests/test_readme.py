@@ -18,7 +18,7 @@ class TestReadMe(unittest.TestCase):
             elif inside_block and line.strip() == '```':
                 if command is not None:
                     yield (command, ''.join(output_lines))
-                    output_lines.clear()
+                output_lines.clear()
                 command = None
                 inside_block = False
             elif line.lstrip().startswith('$'):
